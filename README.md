@@ -8,7 +8,9 @@ A Python implementation of the GFWX (Good, Fast Wavelet Codec) for educational p
 
 ## Overview
 
-PyGFWX is an educational implementation of the [GFWX wavelet codec](https://www.gfwx.org/), created to learn and understand wavelet-based image compression. The implementation is validated against the reference C++ SDK.
+PyGFWX is an educational implementation of the [GFWX wavelet codec](https://www.gfwx.org/), created to learn and understand wavelet-based image compression. The implementation prioritizes **readability over performance** - it's written in pure Python with NumPy for data structures, but no optimized libraries for the core algorithms.
+
+> **Note:** This is a learning tool, not a production codec. For high-performance encoding, use the [reference C++ SDK](https://www.gfwx.org/). PyGFWX is useful for understanding how wavelet compression works, experimenting with the algorithm, and educational purposes.
 
 ### Compression Demo
 
@@ -33,6 +35,17 @@ Using the cat image above (768×1024 RGB), here are compression results at diffe
 - **Multi-layer support**: Stereo images, depth maps, animation frames
 - **Custom color transforms**: Programmable UYV, A710, and custom transforms
 - **Metadata support**: JSON, key-value, or binary metadata blocks
+
+### Why Pure Python?
+
+This project implements the full codec in readable Python to make it easy to:
+
+- **Step through** the compression pipeline with a debugger
+- **Understand** each stage: wavelets, quantization, entropy coding
+- **Experiment** with modifications to the algorithm
+- **Learn** wavelet compression without deciphering optimized C++
+
+The code is validated against the reference SDK to ensure correctness, but runs significantly slower (expect 100x+ slower than the C++ implementation).
 
 ## Installation
 
