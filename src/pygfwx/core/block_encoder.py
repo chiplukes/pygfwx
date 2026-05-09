@@ -13,13 +13,11 @@ The encoding order mirrors the decoder for bit-exact roundtrip.
 """
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
 from pygfwx.core.bitstream import BitWriter
 from pygfwx.core.encoder import encode_coefficients
-from pygfwx.core.golomb_rice import signed_encode
 from pygfwx.core.header import (
     QUALITY_MAX,
     Encoder,
@@ -31,6 +29,13 @@ from pygfwx.core.header import (
 )
 from pygfwx.core.lifting import lift
 from pygfwx.core.quantization import quantize
+from pygfwx.core.transforms import (
+    TRANSFORM_A710_RGB,
+    forward_transform_generic,
+    forward_transform_uyv,
+    get_chroma_flags,
+    write_transform_program,
+)
 
 
 @dataclass
@@ -49,14 +54,15 @@ class EncodeResult:  # cm:b8c9d0 — EncodeResult dataclass: compressed bytes + 
         return len(self.data)
 
 
-def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validate→lift→quantize→entropy-code)
+def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validate→color-transform→lift→quantize→entropy-code)
     image: np.ndarray,
     quality: int = QUALITY_MAX,
     filter_type: Filter = Filter.LINEAR,
     encoder: Encoder = Encoder.CONTEXTUAL,
-    intent: Optional[Intent] = None,
+    intent: Intent | None = None,
     chroma_scale: int = 1,
     metadata: bytes = b"",
+    color_transform: str | None = None,
 ) -> EncodeResult:
     """
     Encode an image to GFWX format.
@@ -75,6 +81,10 @@ def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validat
         intent: Color intent (auto-detected if None).
         chroma_scale: Chroma quality divisor (1=same as luma).
         metadata: Optional metadata bytes (must be multiple of 4).
+        color_transform: Optional color transform to apply before lifting.
+            - None: identity (no transform, default)
+            - "uyv": UYV/YUV-like (R-=G, B-=G, G+=(R'+B')/4)
+            - "a710": A710 higher-quality color transform
 
     Returns:
         EncodeResult containing compressed data and header.
@@ -110,17 +120,11 @@ def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validat
 
     # Copy input data to aux buffer
     boost = 1 if quality == QUALITY_MAX else 8
-    for c in range(total_channels):
-        if total_channels == 1:
-            aux_data[c] = image.astype(np.int32) * boost
-        else:
-            aux_data[c] = image[:, :, c].astype(np.int32) * boost
 
-    # Track which channels are chroma (for transform program)
-    is_chroma = [0] * total_channels
-
-    # Apply forward color transform (currently no transform - identity)
-    # In the future, we can add UYV/A710 transforms here
+    # Apply forward color transform (populates aux_data, returns program + chroma flags)
+    transform_program, is_chroma = _apply_forward_transform(
+        image, aux_data, boost, total_channels, color_transform
+    )
 
     # Apply forward wavelet transform to each channel
     for c in range(total_channels):
@@ -145,16 +149,64 @@ def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validat
     # Build final output: header + transform program + encoded blocks
     header_bytes = write_header(header, metadata)
 
-    # Write transform program (minimal: just end marker for identity transform)
-    transform_writer = BitWriter(4)  # 4 words should be plenty
-    signed_encode(2, -1, transform_writer)  # End marker
-    transform_writer.flush_write_word()
+    # Write transform program (identity end-marker, or actual program if transform used)
+    transform_writer = BitWriter(16)  # Sufficient for any standard program
+    write_transform_program(transform_writer, transform_program)
     transform_bytes = transform_writer.get_data()
 
     # Combine all parts
     result_data = header_bytes + transform_bytes + encoded_data
 
     return EncodeResult(data=result_data, header=header)
+
+
+def _apply_forward_transform(
+    image: np.ndarray,
+    aux_data: np.ndarray,
+    boost: int,
+    total_channels: int,
+    color_transform: str | None,
+) -> tuple[list[int] | None, list[int]]:
+    """
+    Apply forward color transform and fill aux_data.
+
+    For the identity case (no transform), simply copies image * boost into aux_data.
+    For UYV or A710, delegates to the appropriate transform function.
+
+    Args:
+        image: Input image array (H, W) or (H, W, C).
+        aux_data: Pre-allocated output buffer (C, H, W) int32 — modified in-place.
+        boost: Scale factor (1 for lossless, 8 for lossy).
+        total_channels: Number of channels.
+        color_transform: "uyv", "a710", or None.
+
+    Returns:
+        Tuple of (transform_program, is_chroma_flags).
+        transform_program is None for identity; a list[int] for named transforms.
+    """
+    if color_transform is None or total_channels < 3:
+        # Identity: copy with boost, no transform
+        for c in range(total_channels):
+            if total_channels == 1:
+                aux_data[c] = image.astype(np.int32) * boost
+            else:
+                aux_data[c] = image[:, :, c].astype(np.int32) * boost
+        return None, [0] * total_channels
+
+    if color_transform == "uyv":
+        result, program = forward_transform_uyv(image, boost)
+        is_chroma = get_chroma_flags(total_channels, True, program)
+    elif color_transform == "a710":
+        result, is_chroma = forward_transform_generic(image, TRANSFORM_A710_RGB, boost)
+        program = TRANSFORM_A710_RGB
+    else:
+        raise ValueError(f"Unknown color_transform {color_transform!r}. Use 'uyv', 'a710', or None.")
+
+    # Copy result (C, H, W) into aux_data (same shape)
+    for c in range(total_channels):
+        aux_data[c] = result[c]
+
+    return program, is_chroma
 
 
 def _validate_input(

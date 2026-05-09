@@ -28,8 +28,8 @@ __version__ = "0.1.0"
 from pygfwx.core.codec import (
     QUALITY_MAX,
     DecodeResult,
-    EncodeResult,
     Encoder,
+    EncodeResult,
     Filter,
     GFWXHeader,
     Intent,
@@ -48,8 +48,19 @@ from pygfwx.streaming.progressive import (
     decode_progressive,
 )
 
+# Import image I/O utilities
+from pygfwx.utils.image_io import (
+    get_bit_depth,
+    load_image,
+    save_image,
+)
+
 # Public API
 __all__ = [
+    # Image I/O
+    "load_image",
+    "save_image",
+    "get_bit_depth",
     # Version
     "__version__",
     # Main functions

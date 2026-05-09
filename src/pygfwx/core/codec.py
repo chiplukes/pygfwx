@@ -21,7 +21,6 @@ Example:
     >>> decoded = decode(compressed)
 """
 
-from typing import Optional
 
 import numpy as np
 
@@ -59,9 +58,10 @@ def encode(  # cm:d4e5f6 — High-level encode() → bytes
     quality: int = QUALITY_MAX,
     filter: Filter = Filter.LINEAR,
     encoder: Encoder = Encoder.CONTEXTUAL,
-    intent: Optional[Intent] = None,
+    intent: Intent | None = None,
     chroma_scale: int = 1,
     metadata: bytes = b"",
+    color_transform: str | None = None,
 ) -> bytes:
     """
     Encode an image to GFWX format.
@@ -87,6 +87,10 @@ def encode(  # cm:d4e5f6 — High-level encode() → bytes
         intent: Color intent (auto-detected from channel count if None).
         chroma_scale: Chroma quality divisor (1 = same quality as luma).
         metadata: Optional metadata bytes (must be multiple of 4 bytes).
+        color_transform: Optional color transform before lifting.
+            - None: no transform (default)
+            - "uyv": YUV-like transform (improves compression for natural images)
+            - "a710": A710 higher-quality transform
 
     Returns:
         Compressed GFWX data as bytes.
@@ -108,6 +112,7 @@ def encode(  # cm:d4e5f6 — High-level encode() → bytes
         intent=intent,
         chroma_scale=chroma_scale,
         metadata=metadata,
+        color_transform=color_transform,
     )
     return result.data
 
@@ -177,9 +182,10 @@ def encode_full(  # cm:a3b4c5 — encode_full() → EncodeResult (data + header)
     quality: int = QUALITY_MAX,
     filter: Filter = Filter.LINEAR,
     encoder: Encoder = Encoder.CONTEXTUAL,
-    intent: Optional[Intent] = None,
+    intent: Intent | None = None,
     chroma_scale: int = 1,
     metadata: bytes = b"",
+    color_transform: str | None = None,
 ) -> EncodeResult:
     """
     Encode image and return full result with header.
@@ -195,6 +201,7 @@ def encode_full(  # cm:a3b4c5 — encode_full() → EncodeResult (data + header)
         intent: Color intent (auto-detected if None).
         chroma_scale: Chroma quality divisor.
         metadata: Optional metadata bytes.
+        color_transform: Optional color transform ("uyv", "a710", or None).
 
     Returns:
         EncodeResult with .data and .header attributes.
@@ -207,6 +214,7 @@ def encode_full(  # cm:a3b4c5 — encode_full() → EncodeResult (data + header)
         intent=intent,
         chroma_scale=chroma_scale,
         metadata=metadata,
+        color_transform=color_transform,
     )
 
 
