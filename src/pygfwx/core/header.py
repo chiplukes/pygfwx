@@ -11,14 +11,14 @@ from enum import IntEnum
 from pygfwx.core.bitstream import BitReader, BitWriter
 
 
-class Filter(IntEnum):
+class Filter(IntEnum):  # cm:b9c0d1 — Filter enum: LINEAR (5/3) and CUBIC (9/7) wavelet types
     """Wavelet filter type."""
 
     LINEAR = 0  # 5/3 wavelet (better for lossless)
     CUBIC = 1  # 9/7 wavelet (better for lossy)
 
 
-class Encoder(IntEnum):
+class Encoder(IntEnum):  # cm:e2f3a4 — Encoder enum: TURBO/FAST/CONTEXTUAL/HIGH_BITRATE modes
     """Encoder mode."""
 
     TURBO = 0  # Fastest, lowest compression (deprecated in v1)
@@ -27,7 +27,7 @@ class Encoder(IntEnum):
     HIGH_BITRATE = 3  # Best quality at high bitrates
 
 
-class Intent(IntEnum):
+class Intent(IntEnum):  # cm:b5c6d7 — Intent enum: color format (MONO/RGB/RGBA/Bayer/BGR/CMYK…)
     """Color intent/format."""
 
     GENERIC = 0
@@ -53,11 +53,11 @@ class Intent(IntEnum):
 GFWX_MAGIC = ord("G") | (ord("F") << 8) | (ord("W") << 16) | (ord("X") << 24)  # 0x58574647
 
 # Maximum quality (lossless)
-QUALITY_MAX = 1024
+QUALITY_MAX = 1024  # cm:e8f9a0 — QUALITY_MAX=1024 sentinel (lossless; no quantization)
 
 
 @dataclass
-class GFWXHeader:
+class GFWXHeader:  # cm:b1c2d3 — GFWXHeader dataclass: all file-format fields (32-byte fixed header)
     """GFWX file header."""
 
     version: int
@@ -88,7 +88,7 @@ class HeaderParseError(Exception):
     pass
 
 
-def parse_header(data: bytes) -> tuple[GFWXHeader, int]:
+def parse_header(data: bytes) -> tuple[GFWXHeader, int]:  # cm:e4f5a6 — parse_header(): deserialize 32-byte header + metadata
     """
     Parse a GFWX header from compressed data.
 
@@ -215,7 +215,7 @@ def read_metadata(data: bytes, header: GFWXHeader) -> bytes:
     return data[metadata_start:metadata_end]
 
 
-def write_header(header: GFWXHeader, metadata: bytes = b"") -> bytes:
+def write_header(header: GFWXHeader, metadata: bytes = b"") -> bytes:  # cm:b7c8d9 — write_header(): serialize header to bytes
     """
     Write a GFWX header to bytes.
 
@@ -307,7 +307,7 @@ def write_header(header: GFWXHeader, metadata: bytes = b"") -> bytes:
     return header_bytes
 
 
-def create_default_header(
+def create_default_header(  # cm:e0f1a2 — create_default_header(): convenience factory for encoding
     width: int,
     height: int,
     channels: int = 1,

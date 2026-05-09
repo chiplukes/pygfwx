@@ -11,7 +11,7 @@ import argparse
 import sys
 
 
-def main():
+def main():  # cm:d4e5f6b — main(): CLI entry point (compress/decompress/info subcommands — stub)
     """Main entry point for the CLI."""
     parser = argparse.ArgumentParser(
         prog="pygfwx",

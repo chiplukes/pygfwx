@@ -34,7 +34,7 @@ from pygfwx.core.quantization import quantize
 
 
 @dataclass
-class EncodeResult:
+class EncodeResult:  # cm:b8c9d0 — EncodeResult dataclass: compressed bytes + header from encode
     """Result of encoding operation."""
 
     data: bytes
@@ -49,7 +49,7 @@ class EncodeResult:
         return len(self.data)
 
 
-def encode_image(
+def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validate→lift→quantize→entropy-code)
     image: np.ndarray,
     quality: int = QUALITY_MAX,
     filter_type: Filter = Filter.LINEAR,
@@ -220,7 +220,7 @@ def _auto_detect_intent(channels: int) -> Intent:
         return Intent.GENERIC
 
 
-def _encode_all_levels(
+def _encode_all_levels(  # cm:b4c5d6 — _encode_all_levels(): resolution-level loop (coarse→fine block encoding)
     aux_data: np.ndarray,
     header: GFWXHeader,
     is_chroma: list[int],

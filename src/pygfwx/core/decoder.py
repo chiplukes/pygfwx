@@ -25,7 +25,7 @@ from pygfwx.core.golomb_rice import interleaved_decode, signed_decode, unsigned_
 from pygfwx.core.header import Encoder
 
 
-def decode_coefficients(
+def decode_coefficients(  # cm:a2b3c4d — decode_coefficients(): bitstream → wavelet block (main inner loop)
     image: np.ndarray,
     stream: BitReader,
     x0: int,
@@ -146,7 +146,7 @@ def decode_coefficients(
             image[y0 + y, x0 + x] = s
 
 
-def _decode_with_context(context: Context, stream: BitReader, is_chroma: bool) -> int:
+def _decode_with_context(context: Context, stream: BitReader, is_chroma: bool) -> int:  # cm:e5f6a7 — _decode_with_context(): context-adaptive Golomb-Rice coefficient decoding
     """
     Decode a coefficient using context-adaptive mode selection.
 

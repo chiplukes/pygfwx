@@ -13,7 +13,7 @@ Primary Reference Image:
 import numpy as np
 
 
-def create_reference_image(size: int = 64, channels: int = 1, bit_depth: int = 8) -> np.ndarray:
+def create_reference_image(size: int = 64, channels: int = 1, bit_depth: int = 8) -> np.ndarray:  # cm:a7b8c9d — create_reference_image(): canonical test image (4-quadrant: smooth/stripes/checker/mixed)
     """Create the primary reference image for testing.
 
     This image is designed to exercise all aspects of wavelet compression:
@@ -100,7 +100,7 @@ def create_reference_image(size: int = 64, channels: int = 1, bit_depth: int = 8
         return np.stack(channel_arrays, axis=-1)
 
 
-def create_uniform_image(size: int = 64, value: int = 128, channels: int = 1, bit_depth: int = 8) -> np.ndarray:
+def create_uniform_image(size: int = 64, value: int = 128, channels: int = 1, bit_depth: int = 8) -> np.ndarray:  # cm:e0f1a2b — create_uniform_image(): constant-value image (DC and quantization edge cases)
     """Create a uniform (constant value) image.
 
     Useful for testing DC handling and quantization edge cases.
@@ -124,7 +124,7 @@ def create_uniform_image(size: int = 64, value: int = 128, channels: int = 1, bi
         return np.full((size, size, channels), value, dtype=dtype)
 
 
-def create_impulse_image(size: int = 64, channels: int = 1, bit_depth: int = 8) -> np.ndarray:
+def create_impulse_image(size: int = 64, channels: int = 1, bit_depth: int = 8) -> np.ndarray:  # cm:c3d4e5c — create_impulse_image(): single bright pixel (impulse response / boundary tests)
     """Create an image with a single bright pixel at center.
 
     Useful for testing impulse response and boundary handling.

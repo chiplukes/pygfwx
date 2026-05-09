@@ -33,7 +33,7 @@ from pygfwx.core.lifting import unlift
 from pygfwx.core.quantization import QUALITY_MAX, dequantize
 
 
-class ProgressiveStatus(IntEnum):
+class ProgressiveStatus(IntEnum):  # cm:c2d3e4 — ProgressiveStatus enum: OK/NEED_MORE_DATA/MALFORMED/UNSUPPORTED
     """Status codes for progressive decoding."""
 
     OK = 0
@@ -50,7 +50,7 @@ class ProgressiveStatus(IntEnum):
 
 
 @dataclass
-class ProgressiveResult:
+class ProgressiveResult:  # cm:f5a6b7 — ProgressiveResult: decode result + status + levels + next_point_of_interest
     """Result from progressive decode operation."""
 
     status: ProgressiveStatus
@@ -76,7 +76,7 @@ class ProgressiveResult:
 
 
 @dataclass
-class ProgressiveDecoder:
+class ProgressiveDecoder:  # cm:c8d9e0b — ProgressiveDecoder: stateful streaming decoder (feed chunks, get partial images)
     """
     Stateful progressive decoder for streaming applications.
 
@@ -140,7 +140,7 @@ class ProgressiveDecoder:
         return len(self._data)
 
 
-def decode_progressive(
+def decode_progressive(  # cm:f1a2b3c — decode_progressive(): decode partial/truncated GFWX data gracefully
     data: bytes,
     downsampling: int = 0,
 ) -> ProgressiveResult:

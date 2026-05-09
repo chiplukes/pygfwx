@@ -18,7 +18,7 @@ class BitstreamOverflowError(Exception):
     pass
 
 
-class BitReader:
+class BitReader:  # cm:c3d4e5 — BitReader: word-aligned bit extraction from compressed stream
     """
     Reads bits from a buffer of 32-bit words.
 
@@ -70,7 +70,7 @@ class BitReader:
             return True
         return False
 
-    def get_bits(self, bits: int) -> int:
+    def get_bits(self, bits: int) -> int:  # cm:f6a7b8 — get_bits(): read N bits MSB-first
         """
         Read n bits from the stream.
 
@@ -114,7 +114,7 @@ class BitReader:
         # Shift to get the requested bits as the low bits
         return (x >> (32 - bits)) & ((1 << bits) - 1)
 
-    def get_zeros(self, max_zeros: int) -> int:
+    def get_zeros(self, max_zeros: int) -> int:  # cm:c9d0e1 — get_zeros(): unary zero run count (Golomb prefix)
         """
         Read unary zeros from the stream until a 1-bit or max_zeros reached.
 
@@ -193,7 +193,7 @@ class BitReader:
         return total_bits - self.position_bits
 
 
-class BitWriter:
+class BitWriter:  # cm:f2a3b4 — BitWriter: bit packing into 32-bit word buffer
     """
     Writes bits to a buffer of 32-bit words.
 
@@ -227,7 +227,7 @@ class BitWriter:
         """Return the number of words in the buffer."""
         return len(self.buffer)
 
-    def put_bits(self, x: int, bits: int) -> None:
+    def put_bits(self, x: int, bits: int) -> None:  # cm:c5d6e7 — put_bits(): write N bits MSB-first
         """
         Write n bits to the stream.
 

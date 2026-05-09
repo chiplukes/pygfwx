@@ -27,7 +27,7 @@ from pygfwx.core.golomb_rice import interleaved_encode, signed_encode, unsigned_
 from pygfwx.core.header import Encoder
 
 
-def encode_coefficients(
+def encode_coefficients(  # cm:a6b7c8 — encode_coefficients(): wavelet block → bitstream (main inner loop)
     image: np.ndarray,
     stream: BitWriter,
     x0: int,
@@ -132,7 +132,7 @@ def encode_coefficients(
         unsigned_encode(run_coder, run, stream)
 
 
-def _encode_with_context(
+def _encode_with_context(  # cm:d9e0f1b — _encode_with_context(): context-adaptive Golomb-Rice coefficient encoding
     context: Context, s: int, stream: BitWriter, is_chroma: bool
 ) -> None:
     """

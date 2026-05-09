@@ -26,7 +26,7 @@ from pygfwx.core.golomb_rice import signed_decode, signed_encode
 # UYV transform program: R -= G (chroma); B -= G (chroma); G += (R + B) / 4 (luma)
 # Format: [dest, src, factor, ..., -1, denom, is_chroma] for each channel, ending with -1
 # SDK: GFWX_TRANSFORM_UYV = { 0, 1, -1, -1, 1, 1, 2, 1, -1, -1, 1, 1, 1, 0, 1, 2, 1, -1, 4, 0, -1 }
-TRANSFORM_UYV_PROGRAM = [
+TRANSFORM_UYV_PROGRAM = [  # cm:b2c3d4 — TRANSFORM_UYV_PROGRAM: UYV color transform program constant (SDK-compatible)
     0, 1, -1, -1, 1, 1,       # Channel 0 (R): subtract G*1, div by 1, chroma=1
     2, 1, -1, -1, 1, 1,       # Channel 2 (B): subtract G*1, div by 1, chroma=1
     1, 0, 1, 2, 1, -1, 4, 0,  # Channel 1 (G): add (R+B)/4, div by 4, chroma=0
@@ -45,7 +45,7 @@ TRANSFORM_A710_RGB = [
 ]
 
 
-def forward_transform_uyv(
+def forward_transform_uyv(  # cm:e5f6a7b — forward_transform_uyv(): RGB→YUV-like (R'=R-G, B'=B-G, G'=G+(R'+B')/4)
     image: np.ndarray,
     boost: int = 8,
 ) -> tuple[np.ndarray, list[int]]:
@@ -136,7 +136,7 @@ def inverse_transform_uyv(
     return result
 
 
-def forward_transform_generic(
+def forward_transform_generic(  # cm:c8d9e0 — forward_transform_generic(): apply any SDK-format transform program
     image: np.ndarray,
     program: list[int],
     boost: int = 8,

@@ -33,7 +33,7 @@ import numpy as np
 from pygfwx.core.header import Intent
 
 
-class BayerPattern(IntEnum):
+class BayerPattern(IntEnum):  # cm:f1a2b3 — BayerPattern enum: RGGB/BGGR/GRBG/GBRG/GENERIC patterns
     """
     Bayer CFA (Color Filter Array) patterns.
 
@@ -68,7 +68,7 @@ class BayerSubImage:
     is_chroma: bool
 
 
-def intent_is_bayer(intent: Intent | int) -> bool:
+def intent_is_bayer(intent: Intent | int) -> bool:  # cm:c4d5e6 — intent_is_bayer(): check if intent is a Bayer CFA mode
     """
     Check if an intent indicates a Bayer pattern.
 
@@ -96,7 +96,7 @@ def get_bayer_pattern(intent: Intent | int) -> BayerPattern | None:
     return None
 
 
-def get_bayer_sub_images(pattern: BayerPattern) -> list[BayerSubImage]:
+def get_bayer_sub_images(pattern: BayerPattern) -> list[BayerSubImage]:  # cm:f7a8b9 — get_bayer_sub_images(): describe 4 sub-images (ox,oy,color,chroma) for a pattern
     """
     Get the 4 sub-images for a Bayer pattern.
 

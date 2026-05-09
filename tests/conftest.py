@@ -22,7 +22,7 @@ from pygfwx.utils.reference_images import (
 PROJECT_ROOT = Path(__file__).parent.parent
 
 
-def detect_sdk() -> Path | None:
+def detect_sdk() -> Path | None:  # cm:c9d0e1b — detect_sdk(): locate GFWX SDK .dll/.so for cross-validation tests
     """Detect if the GFWX SDK shared library is available.
 
     Returns:
@@ -71,7 +71,7 @@ def pytest_collection_modifyitems(config, items):  # noqa: ARG001
 
 
 @pytest.fixture
-def reference_image() -> np.ndarray:
+def reference_image() -> np.ndarray:  # cm:f2a3b4c — reference_image fixture: 64×64 mono 8-bit with mixed frequency content
     """Primary reference image (64x64 mono) with mixed frequency content.
 
     This is the main test image that should be used for most tests.

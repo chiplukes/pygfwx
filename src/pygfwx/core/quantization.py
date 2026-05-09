@@ -21,7 +21,7 @@ import numpy as np
 from pygfwx.core.header import QUALITY_MAX
 
 
-def quantize(
+def quantize(  # cm:b6c7d8 — quantize(): forward scalar quantization of wavelet coefficients
     image: np.ndarray,
     x0: int,
     y0: int,
@@ -79,7 +79,7 @@ def quantize(
         quality = min(max_q, quality * 2)  # [MAGIC] Approximates JPEG 2000 baseline
 
 
-def dequantize(
+def dequantize(  # cm:e9f0a1 — dequantize(): inverse quantization with midpoint rounding
     image: np.ndarray,
     x0: int,
     y0: int,

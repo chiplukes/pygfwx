@@ -17,7 +17,7 @@ import numpy as np
 from pygfwx.core.header import Filter
 
 
-def _trunc_div(num: int, denom: int) -> int:
+def _trunc_div(num: int, denom: int) -> int:  # cm:f6a7b8c — _trunc_div(): C++ truncation-toward-zero integer division
     """
     Integer division with truncation toward zero (like C++).
 
@@ -88,7 +88,7 @@ def _median(a: int, b: int, c: int) -> int:
             return b
 
 
-def _cubic(c0: int, c1: int, c2: int, c3: int) -> int:
+def _cubic(c0: int, c1: int, c2: int, c3: int) -> int:  # cm:d9e0f1 — _cubic(): 9/7 wavelet interpolation with median clamp
     """
     Cubic interpolation with median clamping.
 
@@ -107,7 +107,7 @@ def _cubic(c0: int, c1: int, c2: int, c3: int) -> int:
     return _median(interpolated, c1, c2)
 
 
-def lift(
+def lift(  # cm:a2b3c4 — lift(): forward wavelet transform (spatial → wavelet domain, in-place)
     image: np.ndarray,
     x0: int,
     y0: int,
@@ -292,7 +292,7 @@ def _lift_vertical(
                 base[x0 + x] += _trunc_div(int(g1base[x0 + x]) + int(g2base[x0 + x]), 4)
 
 
-def unlift(
+def unlift(  # cm:d5e6f7 — unlift(): inverse wavelet transform (wavelet → spatial domain, in-place)
     image: np.ndarray,
     x0: int,
     y0: int,

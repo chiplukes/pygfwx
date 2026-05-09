@@ -25,7 +25,7 @@ from pygfwx.core.header import GFWXHeader
 
 
 @dataclass
-class MultiLayerImage:
+class MultiLayerImage:  # cm:c0d1e2 — MultiLayerImage dataclass: interleaved multi-layer container with per-layer access
     """
     Container for multi-layer image data.
 
@@ -133,7 +133,7 @@ class MultiLayerImage:
                 )
 
 
-def create_multi_layer(
+def create_multi_layer(  # cm:f3a4b5 — create_multi_layer(): build MultiLayerImage from individual layer arrays
     *layers: np.ndarray,
     dtype: np.dtype | None = None,
 ) -> MultiLayerImage:

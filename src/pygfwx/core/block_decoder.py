@@ -38,7 +38,7 @@ from pygfwx.core.quantization import QUALITY_MAX, dequantize
 
 
 @dataclass
-class DecodeResult:
+class DecodeResult:  # cm:e7f8a9 — DecodeResult dataclass: decoded image + header + truncation flag
     """Result of decoding operation."""
 
     image: np.ndarray
@@ -52,7 +52,7 @@ class DecodeResult:
 
 
 @dataclass
-class BlockInfo:
+class BlockInfo:  # cm:b0c1d2 — BlockInfo dataclass: per-block spatial coordinates and word-size
     """Information about a single block."""
 
     bx: int
@@ -80,7 +80,7 @@ class BlockInfo:
     """Size of block data in 32-bit words."""
 
 
-def decode_image(
+def decode_image(  # cm:e3f4a5 — decode_image(): full decode pipeline (header→transform→entropy→unlift→output)
     data: bytes,
     downsampling: int = 0,
 ) -> DecodeResult:

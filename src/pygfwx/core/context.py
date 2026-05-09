@@ -19,7 +19,7 @@ from typing import NamedTuple
 import numpy as np
 
 
-class Context(NamedTuple):
+class Context(NamedTuple):  # cm:a8b9c0 — Context NamedTuple: (sum, sum2) statistics for entropy coding
     """Context statistics for entropy coding.
 
     Attributes:
@@ -56,7 +56,7 @@ def _add_context(
     return sum_val, sum2_val, count
 
 
-def get_context(
+def get_context(  # cm:d1e2f3 — get_context(): sample neighborhood → Context(sum, sum2)
     image: np.ndarray,
     x0: int,
     y0: int,
@@ -168,7 +168,7 @@ def get_context(
     return Context(norm_sum, norm_sum2)
 
 
-def select_coding_mode(
+def select_coding_mode(  # cm:a4b5c6 — select_coding_mode(): context → (interleaved|signed, pot) decision tree
     context: Context, is_chroma: bool = False
 ) -> tuple[str, int]:
     """
@@ -216,7 +216,7 @@ def select_coding_mode(
         return ("signed", 4)
 
 
-def update_fast_context(context: Context, value: int) -> Context:
+def update_fast_context(context: Context, value: int) -> Context:  # cm:d7e8f9 — update_fast_context(): FAST mode exponential-decay update
     """
     Update context using the FAST encoder's decaying moment method.
 
@@ -237,7 +237,7 @@ def update_fast_context(context: Context, value: int) -> Context:
     return Context(new_sum, new_sum2)
 
 
-def compute_run_coder_fast(context: Context) -> int:
+def compute_run_coder_fast(context: Context) -> int:  # cm:a0b1c2 — compute_run_coder_fast(): FAST mode run-length pot selection
     """
     Compute run coder parameter for FAST encoder mode.
 
@@ -261,7 +261,7 @@ def compute_run_coder_fast(context: Context) -> int:
         return 0
 
 
-def compute_run_coder_contextual(context: Context, quality: int) -> int:
+def compute_run_coder_contextual(context: Context, quality: int) -> int:  # cm:d3e4f5 — compute_run_coder_contextual(): CONTEXTUAL mode run-length pot
     """
     Compute run coder parameter for CONTEXTUAL encoder mode.
 

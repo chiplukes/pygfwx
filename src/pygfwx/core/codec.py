@@ -54,7 +54,7 @@ __all__ = [
 ]
 
 
-def encode(
+def encode(  # cm:d4e5f6 — High-level encode() → bytes
     image: np.ndarray,
     quality: int = QUALITY_MAX,
     filter: Filter = Filter.LINEAR,
@@ -112,7 +112,7 @@ def encode(
     return result.data
 
 
-def decode(
+def decode(  # cm:a7b8c9 — High-level decode() → ndarray
     data: bytes,
     downsampling: int = 0,
 ) -> np.ndarray:
@@ -146,7 +146,7 @@ def decode(
     return result.image
 
 
-def get_header(data: bytes) -> GFWXHeader:
+def get_header(data: bytes) -> GFWXHeader:  # cm:d0e1f2 — Inspect header without full decode
     """
     Parse header from GFWX data without full decode.
 
@@ -172,7 +172,7 @@ def get_header(data: bytes) -> GFWXHeader:
     return header
 
 
-def encode_full(
+def encode_full(  # cm:a3b4c5 — encode_full() → EncodeResult (data + header)
     image: np.ndarray,
     quality: int = QUALITY_MAX,
     filter: Filter = Filter.LINEAR,
@@ -210,7 +210,7 @@ def encode_full(
     )
 
 
-def decode_full(
+def decode_full(  # cm:d6e7f8 — decode_full() → DecodeResult (image + header + truncation flag)
     data: bytes,
     downsampling: int = 0,
 ) -> DecodeResult:

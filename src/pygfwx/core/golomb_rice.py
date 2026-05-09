@@ -20,7 +20,7 @@ from pygfwx.core.bitstream import BitReader, BitWriter
 # =============================================================================
 
 
-def unsigned_decode(pot: int, stream: BitReader) -> int:
+def unsigned_decode(pot: int, stream: BitReader) -> int:  # cm:f8a9b0 — unsigned_decode(): Golomb-Rice decode (run + remainder)
     """
     Decode an unsigned value using Golomb-Rice coding.
 
@@ -61,7 +61,7 @@ def unsigned_decode(pot: int, stream: BitReader) -> int:
         return x
 
 
-def interleaved_decode(pot: int, stream: BitReader) -> int:
+def interleaved_decode(pot: int, stream: BitReader) -> int:  # cm:c1d2e3 — interleaved_decode(): signed via zig-zag mapping
     """
     Decode a signed value using interleaved coding.
 
@@ -92,7 +92,7 @@ def interleaved_decode(pot: int, stream: BitReader) -> int:
         return -(x >> 1)  # Even: 0->0, 2->-1, 4->-2, ...
 
 
-def signed_decode(pot: int, stream: BitReader) -> int:
+def signed_decode(pot: int, stream: BitReader) -> int:  # cm:f4a5b6 — signed_decode(): magnitude + sign-bit coding
     """
     Decode a signed value using sign bit coding.
 
@@ -140,7 +140,7 @@ def signed_decode_4(stream: BitReader) -> int:
 # =============================================================================
 
 
-def unsigned_encode(pot: int, value: int, stream: BitWriter) -> None:
+def unsigned_encode(pot: int, value: int, stream: BitWriter) -> None:  # cm:c7d8e9 — unsigned_encode(): Golomb-Rice encode with escape
     """
     Encode an unsigned value using Golomb-Rice coding.
 
@@ -164,7 +164,7 @@ def unsigned_encode(pot: int, value: int, stream: BitWriter) -> None:
             stream.put_bits(value & ((1 << p) - 1), p)
 
 
-def interleaved_encode(pot: int, value: int, stream: BitWriter) -> None:
+def interleaved_encode(pot: int, value: int, stream: BitWriter) -> None:  # cm:f0a1b2 — interleaved_encode(): signed via zig-zag mapping
     """
     Encode a signed value using interleaved coding.
 
@@ -184,7 +184,7 @@ def interleaved_encode(pot: int, value: int, stream: BitWriter) -> None:
         unsigned_encode(pot, (-value) << 1, stream)
 
 
-def signed_encode(pot: int, value: int, stream: BitWriter) -> None:
+def signed_encode(pot: int, value: int, stream: BitWriter) -> None:  # cm:c3d4e5b — signed_encode(): magnitude + sign-bit coding
     """
     Encode a signed value using sign bit coding.
 

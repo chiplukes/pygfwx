@@ -188,7 +188,7 @@ def _find_library() -> Path | None:
     return None
 
 
-class GFWXWrapper:
+class GFWXWrapper:  # cm:f6a7b8d — GFWXWrapper: ctypes wrapper around the reference C++ SDK .dll/.so
     """Python wrapper for the GFWX SDK."""
 
     def __init__(self, library_path: Path | None = None):
