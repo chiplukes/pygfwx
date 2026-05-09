@@ -18,8 +18,7 @@ Key concepts:
 
 import numpy as np
 
-# Constants matching SDK
-QUALITY_MAX = 1024  # Maximum quality parameter value
+from pygfwx.core.header import QUALITY_MAX
 
 
 def quantize(

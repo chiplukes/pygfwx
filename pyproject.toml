@@ -48,6 +48,7 @@ pythonpath = ["src"]
 addopts = "-v --tb=short"
 markers = [
     "sdk: tests that require the GFWX SDK to be available",
+    "sdk_required: tests that require the GFWX SDK to be available",
     "slow: tests that take a long time to run",
 ]
 

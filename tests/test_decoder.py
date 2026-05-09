@@ -12,10 +12,8 @@ These tests verify:
 import numpy as np
 
 from pygfwx.core.bitstream import BitReader, BitWriter
-from pygfwx.core.context import Context
+from pygfwx.core.context import Context, compute_run_coder_contextual, compute_run_coder_fast
 from pygfwx.core.decoder import (
-    _compute_run_coder_contextual,
-    _compute_run_coder_fast,
     _decode_with_context,
     decode_coefficients,
 )
@@ -87,27 +85,27 @@ class TestRunCoderFast:
     def test_very_low_returns_4(self):
         """Test sum < 1 returns pot=4."""
         context = Context(sum=0, sum2=0)
-        assert _compute_run_coder_fast(context) == 4
+        assert compute_run_coder_fast(context) == 4
 
     def test_low_returns_3(self):
         """Test 1 <= sum < 2 returns pot=3."""
         context = Context(sum=1, sum2=0)
-        assert _compute_run_coder_fast(context) == 3
+        assert compute_run_coder_fast(context) == 3
 
     def test_medium_low_returns_2(self):
         """Test 2 <= sum < 4 returns pot=2."""
         context = Context(sum=3, sum2=0)
-        assert _compute_run_coder_fast(context) == 2
+        assert compute_run_coder_fast(context) == 2
 
     def test_medium_returns_1(self):
         """Test 4 <= sum < 8 returns pot=1."""
         context = Context(sum=6, sum2=0)
-        assert _compute_run_coder_fast(context) == 1
+        assert compute_run_coder_fast(context) == 1
 
     def test_high_returns_0(self):
         """Test sum >= 8 returns pot=0."""
         context = Context(sum=10, sum2=0)
-        assert _compute_run_coder_fast(context) == 0
+        assert compute_run_coder_fast(context) == 0
 
 
 class TestRunCoderContextual:
@@ -116,22 +114,22 @@ class TestRunCoderContextual:
     def test_lossless_low_activity(self):
         """Test lossless mode with low activity."""
         context = Context(sum=1, sum2=0)
-        assert _compute_run_coder_contextual(context, quality=1024) == 1
+        assert compute_run_coder_contextual(context, quality=1024) == 1
 
     def test_lossless_high_activity(self):
         """Test lossless mode with high activity."""
         context = Context(sum=5, sum2=0)
-        assert _compute_run_coder_contextual(context, quality=1024) == 0
+        assert compute_run_coder_contextual(context, quality=1024) == 0
 
     def test_lossy_very_low(self):
         """Test lossy mode with very low activity returns pot=4."""
         context = Context(sum=2, sum2=1)
-        assert _compute_run_coder_contextual(context, quality=512) == 4
+        assert compute_run_coder_contextual(context, quality=512) == 4
 
     def test_lossy_low(self):
         """Test lossy mode with low activity returns pot=3."""
         context = Context(sum=6, sum2=3)
-        assert _compute_run_coder_contextual(context, quality=512) == 3
+        assert compute_run_coder_contextual(context, quality=512) == 3
 
 
 class TestDecodeCoefficients:

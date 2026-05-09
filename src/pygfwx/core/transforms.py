@@ -23,31 +23,9 @@ from pygfwx.core.golomb_rice import signed_decode, signed_encode
 
 # Pre-defined transform programs (matching SDK defines)
 
-# UYV transform: R -= G (chroma); B -= G (chroma); G += (R + B) / 4 (luma)
-# Program: [dest, src, factor, ..., -1, denom, is_chroma] for each channel
-TRANSFORM_UYV = [
-    0, 1, -1, -1, 1,  # R -= G * 1 / 1, is_chroma=1
-    1, 2, 1, -1, -1, 1,  # B -= G * 1 / 1, is_chroma=1 (wait, this doesn't match)
-    1, 1, 0, 1, 2, 1, -1, 4,  # G += (R + B) / 4, is_chroma=0
-    0, -1  # End marker
-]
-
-# The actual SDK format as defined:
-# { 0, 1, -1, -1, 1, 1, 2, 1, -1, -1, 1, 1, 1, 0, 1, 2, 1, -1, 4, 0, -1 }
-# Let me decode this properly:
-#   0, 1, -1,    -> dest=0, src=1, factor=-1, then -1 marks end of sources
-#   -1, 1,       -> denom=1 (skip -1 marker, read denom), is_chroma=1
-#   1, 2, 1, -1, -> dest=1 (wait, 1 is is_chroma from prev)
-#
-# Actually the format is:
-#   dest, [src, factor]*, -1, denom, is_chroma, ...
-#
-# So: 0, 1, -1, -1, 1, 1, ...
-#   dest=0, src=1, factor=-1, end=-1, denom=1, is_chroma=1
-#   dest=2, src=1, factor=-1, end=-1, denom=1, is_chroma=1
-#   etc.
-
-# Simplified for our implementation - we'll use explicit structures
+# UYV transform program: R -= G (chroma); B -= G (chroma); G += (R + B) / 4 (luma)
+# Format: [dest, src, factor, ..., -1, denom, is_chroma] for each channel, ending with -1
+# SDK: GFWX_TRANSFORM_UYV = { 0, 1, -1, -1, 1, 1, 2, 1, -1, -1, 1, 1, 1, 0, 1, 2, 1, -1, 4, 0, -1 }
 TRANSFORM_UYV_PROGRAM = [
     0, 1, -1, -1, 1, 1,       # Channel 0 (R): subtract G*1, div by 1, chroma=1
     2, 1, -1, -1, 1, 1,       # Channel 2 (B): subtract G*1, div by 1, chroma=1

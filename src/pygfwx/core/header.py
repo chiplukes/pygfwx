@@ -39,8 +39,11 @@ class Intent(IntEnum):
     BAYER_GENERIC = 6
     RGB = 7
     RGBA = 8
-    BGR = 9
-    BGRA = 10
+    RGBA_PREMULT = 9
+    BGR = 10
+    BGRA = 11
+    BGRA_PREMULT = 12
+    CMYK = 13
 
 
 # Magic number for GFWX files

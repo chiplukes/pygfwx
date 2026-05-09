@@ -53,4 +53,5 @@ The cat test image is:
 
 ## Requirements
 
-Examples require the GFWX SDK to be built. See the main README for build instructions.
+The examples above require only the base `pygfwx` package (NumPy and Pillow).
+No GFWX C++ SDK build is required.

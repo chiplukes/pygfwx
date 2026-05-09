@@ -102,7 +102,7 @@ pygfwx/
 │   ├── streaming/       # Progressive/streaming support
 │   └── utils/           # Helper functions
 ├── cross_codec/         # SDK wrapper and validation tools
-├── tests/               # Test suite (356+ tests)
+├── tests/               # Test suite (385+ tests)
 ├── examples/            # Example scripts
 ├── notes/               # Documentation
 └── gfwx-sdk/            # Reference C++ SDK

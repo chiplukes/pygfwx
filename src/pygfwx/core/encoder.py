@@ -16,7 +16,13 @@ Reference: gfwx.h encode() lines 476-558
 import numpy as np
 
 from pygfwx.core.bitstream import BitWriter
-from pygfwx.core.context import Context, get_context, update_fast_context
+from pygfwx.core.context import (
+    Context,
+    compute_run_coder_contextual,
+    compute_run_coder_fast,
+    get_context,
+    update_fast_context,
+)
 from pygfwx.core.golomb_rice import interleaved_encode, signed_encode, unsigned_encode
 from pygfwx.core.header import Encoder
 
@@ -115,11 +121,11 @@ def encode_coefficients(
                     context = update_fast_context(context, s)
                     # Update run coder if s and runCoder have same zero-ness
                     if bool(s) == bool(run_coder):
-                        run_coder = _compute_run_coder_fast(context)
+                        run_coder = compute_run_coder_fast(context)
                 elif scheme != Encoder.TURBO:
                     # CONTEXTUAL mode run coder update
                     if bool(s) == bool(run_coder):
-                        run_coder = _compute_run_coder_contextual(context, quality)
+                        run_coder = compute_run_coder_contextual(context, quality)
 
     # Flush remaining run at end of block
     if run > 0:
@@ -167,62 +173,6 @@ def _encode_with_context(
             interleaved_encode(4, s, stream)
     else:
         signed_encode(4, s, stream)
-
-
-def _compute_run_coder_fast(context: Context) -> int:
-    """
-    Compute run coder parameter for FAST encoder mode.
-
-    Uses simple first-moment thresholds for quick decisions.
-
-    Args:
-        context: Current context statistics.
-
-    Returns:
-        Run coder pot value (0-4).
-    """
-    if context.sum < 1:
-        return 4
-    elif context.sum < 2:
-        return 3
-    elif context.sum < 4:
-        return 2
-    elif context.sum < 8:
-        return 1
-    else:
-        return 0
-
-
-def _compute_run_coder_contextual(context: Context, quality: int) -> int:
-    """
-    Compute run coder parameter for CONTEXTUAL encoder mode.
-
-    Uses both first and second moments with quality-dependent thresholds.
-
-    Args:
-        context: Current context statistics.
-        quality: Quality parameter (1024 = lossless).
-
-    Returns:
-        Run coder pot value (0-4).
-    """
-    sum_sq = context.sum * context.sum
-
-    if quality == 1024:
-        # Lossless mode: simple threshold
-        return 1 if context.sum < 2 else 0
-    else:
-        # Lossy mode: complex thresholds
-        if context.sum < 4 and context.sum2 < 2:
-            return 4
-        elif context.sum < 8 and context.sum2 < 4:
-            return 3
-        elif 2 * sum_sq < 3 * context.sum2 + 48:
-            return 2
-        elif 2 * sum_sq < 5 * context.sum2 + 32:
-            return 1
-        else:
-            return 0
 
 
 def encode_block(

@@ -70,8 +70,11 @@ class TestHeaderEnums:
         assert Intent.BAYER_GENERIC == 6
         assert Intent.RGB == 7
         assert Intent.RGBA == 8
-        assert Intent.BGR == 9
-        assert Intent.BGRA == 10
+        assert Intent.RGBA_PREMULT == 9
+        assert Intent.BGR == 10
+        assert Intent.BGRA == 11
+        assert Intent.BGRA_PREMULT == 12
+        assert Intent.CMYK == 13
 
 
 class TestHeaderParsing:

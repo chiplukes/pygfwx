@@ -237,6 +237,60 @@ def update_fast_context(context: Context, value: int) -> Context:
     return Context(new_sum, new_sum2)
 
 
+def compute_run_coder_fast(context: Context) -> int:
+    """
+    Compute run coder parameter for FAST encoder mode.
+
+    Uses simple first-moment thresholds for quick decisions.
+
+    Args:
+        context: Current context statistics.
+
+    Returns:
+        Run coder pot value (0-4).
+    """
+    if context.sum < 1:
+        return 4
+    elif context.sum < 2:
+        return 3
+    elif context.sum < 4:
+        return 2
+    elif context.sum < 8:
+        return 1
+    else:
+        return 0
+
+
+def compute_run_coder_contextual(context: Context, quality: int) -> int:
+    """
+    Compute run coder parameter for CONTEXTUAL encoder mode.
+
+    Uses both first and second moments with quality-dependent thresholds.
+
+    Args:
+        context: Current context statistics.
+        quality: Quality parameter (1024 = lossless).
+
+    Returns:
+        Run coder pot value (0-4).
+    """
+    sum_sq = context.sum * context.sum
+
+    if quality == 1024:
+        return 1 if context.sum < 2 else 0
+    else:
+        if context.sum < 4 and context.sum2 < 2:
+            return 4
+        elif context.sum < 8 and context.sum2 < 4:
+            return 3
+        elif 2 * sum_sq < 3 * context.sum2 + 48:
+            return 2
+        elif 2 * sum_sq < 5 * context.sum2 + 32:
+            return 1
+        else:
+            return 0
+
+
 def compute_run_coder(
     context: Context, value: int, current_run_coder: int, quality: int, encoder_fast: bool
 ) -> int:
@@ -261,32 +315,6 @@ def compute_run_coder(
         return current_run_coder
 
     if encoder_fast:
-        # FAST encoder uses simple first-moment threshold
-        if context.sum < 1:
-            return 4
-        elif context.sum < 2:
-            return 3
-        elif context.sum < 4:
-            return 2
-        elif context.sum < 8:
-            return 1
-        else:
-            return 0
+        return compute_run_coder_fast(context)
     else:
-        # CONTEXTUAL encoder uses both moments
-        sum_sq = context.sum * context.sum
-        if quality == 1024:
-            # Lossless mode - simpler threshold
-            return 1 if context.sum < 2 else 0
-        else:
-            # Lossy mode - more complex thresholds
-            if context.sum < 4 and context.sum2 < 2:
-                return 4
-            elif context.sum < 8 and context.sum2 < 4:
-                return 3
-            elif 2 * sum_sq < 3 * context.sum2 + 48:
-                return 2
-            elif 2 * sum_sq < 5 * context.sum2 + 32:
-                return 1
-            else:
-                return 0
+        return compute_run_coder_contextual(context, quality)

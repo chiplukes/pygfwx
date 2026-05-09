@@ -8,7 +8,7 @@ This document lists all Python files in the project with their purposes.
 | File | Purpose | Status |
 |------|---------|--------|
 | `__init__.py` | Package exports and version | Placeholder |
-| `cli.py` | Command-line interface | Not started |
+| `cli.py` | Command-line interface | Stub (not yet implemented) |
 
 ### Core Module (`src/pygfwx/core/`)
 
@@ -22,13 +22,14 @@ This document lists all Python files in the project with their purposes.
 | `decoder.py` | Coefficient decoding with run-length and context | Complete |
 | `lifting.py` | Wavelet lifting transforms (5/3 LINEAR, 9/7 CUBIC) | Complete |
 | `block_decoder.py` | High-level decode pipeline, block/level processing, Bayer | Complete |
+| `block_encoder.py` | High-level encode pipeline, block/level processing, Bayer | Complete |
 | `quantization.py` | Scalar quantization/dequantization | Complete |
 | `encoder.py` | Coefficient encoding (counterpart to decoder.py) | Complete |
 | `transforms.py` | Color/channel transforms (UYV, A710), generic forward/inverse, program building/parsing/validation | Complete |
 | `multi_layer.py` | Multi-layer image utilities (stereo, depth maps) | Complete |
 | `bayer.py` | Bayer/CFA pattern utilities for RAW camera data | Complete |
 | `metadata.py` | Metadata read/write utilities (text, JSON, key-value, chunks) | Complete |
-| `codec.py` | High-level encode/decode API | Not started |
+| `codec.py` | High-level encode/decode API | Complete |
 
 ### Streaming Module (`src/pygfwx/streaming/`)
 
@@ -118,7 +119,8 @@ This document lists all Python files in the project with their purposes.
 | `test_progressive.py` | Progressive decode tests | Complete |
 | `test_multi_layer.py` | Multi-layer image tests | Complete |
 | `test_bayer.py` | Bayer/CFA pattern tests | Complete |
-| `test_roundtrip.py` | Encode/decode roundtrip tests | Not started |
+| `test_metadata.py` | Metadata read/write tests | Complete |
+| `test_roundtrip.py` | Encode/decode roundtrip tests | Complete |
 | `test_formats.py` | Multi-format tests | Not started |
 | `test_sdk_comparison.py` | SDK vs PyGFWX tests | Not started |
 
@@ -127,12 +129,10 @@ This document lists all Python files in the project with their purposes.
 | File | Purpose | Status |
 |------|---------|--------|
 | `README.md` | Examples documentation | Created |
-| `basic_usage.py` | Simple encode/decode | Not started |
-| `walkthrough.py` | Educational step-by-step | Not started |
-| `progressive_demo.py` | Progressive decoding demo | Not started |
-| `multi_channel.py` | Multi-channel example | Not started |
-| `bayer_compression.py` | Bayer/RAW compression | Not started |
-| `visualization_demo.py` | Wavelet visualization | Not started |
+| `basic_usage.py` | Simple encode/decode at different quality levels | Complete |
+| `cat_demo.py` | Compression metrics from test image | Complete |
+| `compression_walkthrough.py` | Step-by-step compression pipeline walkthrough with visualizations | Complete |
+| `progressive_demo.py` | Progressive decoding with truncation and downsampling | Complete |
 
 ## Diagnostics (`diagnostics/`)
 

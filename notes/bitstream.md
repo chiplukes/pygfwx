@@ -84,10 +84,10 @@ INTENT_BAYER_GBRG = 5   # Bayer pattern GBRG
 INTENT_BAYER_GENERIC = 6
 INTENT_RGB = 7          # RGB color
 INTENT_RGBA = 8         # RGBA with alpha
-INTENT_RGBA_PM = 9      # RGBA premultiplied
+INTENT_RGBA_PM = 9      # RGBA premultiplied alpha
 INTENT_BGR = 10         # BGR color
 INTENT_BGRA = 11        # BGRA with alpha
-INTENT_BGRA_PM = 12     # BGRA premultiplied
+INTENT_BGRA_PM = 12     # BGRA premultiplied alpha
 INTENT_CMYK = 13        # CMYK print colors
 ```
 
