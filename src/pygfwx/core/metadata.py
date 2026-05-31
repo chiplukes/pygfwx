@@ -73,7 +73,9 @@ class MetadataChunk:  # cm:c6d7e8 — MetadataChunk: chunk-based metadata (4-byt
         return cls(type_id=type_id, data=chunk_data), 8 + length
 
 
-def read_metadata_raw(data: bytes) -> bytes:  # cm:f9a0b1 — read_metadata_raw(): extract raw metadata bytes from GFWX data
+def read_metadata_raw(
+    data: bytes,
+) -> bytes:  # cm:f9a0b1 — read_metadata_raw(): extract raw metadata bytes from GFWX data
     """
     Read raw metadata bytes from GFWX file data.
 

@@ -15,11 +15,9 @@ import pytest
 from pygfwx.core.multi_layer import (
     MultiLayerImage,
     create_multi_layer,
-    decode_result_to_multi_layer,
     split_layers,
     validate_multi_layer_header,
 )
-
 
 # ============================================================================
 # MultiLayerImage Tests
@@ -154,10 +152,7 @@ class TestCreateMultiLayer:
 
     def test_three_layers(self):
         """Test creating from three layers."""
-        layers = [
-            np.full((5, 10, 3), i * 50, dtype=np.uint8)
-            for i in range(3)
-        ]
+        layers = [np.full((5, 10, 3), i * 50, dtype=np.uint8) for i in range(3)]
         ml = create_multi_layer(*layers)
 
         assert ml.layers == 3
@@ -353,7 +348,7 @@ class TestValidateMultiLayerHeader:
 
     def test_valid_header(self):
         """Test valid header passes validation."""
-        from pygfwx.core.header import GFWXHeader, Filter, Encoder, Intent
+        from pygfwx.core.header import Encoder, Filter, GFWXHeader, Intent
 
         header = GFWXHeader(
             version=1,
@@ -376,7 +371,7 @@ class TestValidateMultiLayerHeader:
 
     def test_zero_layers_invalid(self):
         """Test zero layers is invalid."""
-        from pygfwx.core.header import GFWXHeader, Filter, Encoder, Intent
+        from pygfwx.core.header import Encoder, Filter, GFWXHeader, Intent
 
         header = GFWXHeader(
             version=1,

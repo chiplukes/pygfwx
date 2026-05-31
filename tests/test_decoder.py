@@ -135,9 +135,7 @@ class TestRunCoderContextual:
 class TestDecodeCoefficients:
     """Tests for the main decode_coefficients function."""
 
-    def _encode_test_block(
-        self, coeffs: list[int], scheme: Encoder
-    ) -> bytes:
+    def _encode_test_block(self, coeffs: list[int], scheme: Encoder) -> bytes:
         """Helper to encode a simple test block."""
         writer = BitWriter(1000)
 
@@ -218,7 +216,7 @@ class TestDecodeCoefficients:
         writer = BitWriter(100)
         interleaved_encode(0, 15, writer)  # First coefficient
         interleaved_encode(0, 10, writer)  # Second coefficient
-        interleaved_encode(0, 5, writer)   # Third coefficient
+        interleaved_encode(0, 5, writer)  # Third coefficient
         data = writer.get_data()
 
         image = np.zeros((2, 2), dtype=np.int32)
@@ -332,12 +330,12 @@ class TestDecoderIntegration:
 
         # TURBO mode with q=1024, step=1 starts with runCoder=1
         # Encode run=0 (no zeros), then coefficient
-        unsigned_encode(1, 0, writer)   # run = 0
-        interleaved_encode(1, 5, writer)   # coeff 1
+        unsigned_encode(1, 0, writer)  # run = 0
+        interleaved_encode(1, 5, writer)  # coeff 1
 
         # After non-zero, runCoder stays 1
         unsigned_encode(1, 0, writer)
-        interleaved_encode(1, 3, writer)   # coeff 2
+        interleaved_encode(1, 3, writer)  # coeff 2
 
         unsigned_encode(1, 0, writer)
         interleaved_encode(1, -2, writer)  # coeff 3

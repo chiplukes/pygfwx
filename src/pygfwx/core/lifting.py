@@ -88,7 +88,9 @@ def _median(a: int, b: int, c: int) -> int:
             return b
 
 
-def _cubic(c0: int, c1: int, c2: int, c3: int) -> int:  # cm:d9e0f1 — _cubic(): 9/7 wavelet interpolation with median clamp
+def _cubic(
+    c0: int, c1: int, c2: int, c3: int
+) -> int:  # cm:d9e0f1 — _cubic(): 9/7 wavelet interpolation with median clamp
     """
     Cubic interpolation with median clamping.
 

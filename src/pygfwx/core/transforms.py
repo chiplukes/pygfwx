@@ -27,10 +27,27 @@ from pygfwx.core.golomb_rice import signed_decode, signed_encode
 # Format: [dest, src, factor, ..., -1, denom, is_chroma] for each channel, ending with -1
 # SDK: GFWX_TRANSFORM_UYV = { 0, 1, -1, -1, 1, 1, 2, 1, -1, -1, 1, 1, 1, 0, 1, 2, 1, -1, 4, 0, -1 }
 TRANSFORM_UYV_PROGRAM = [  # cm:b2c3d4 — TRANSFORM_UYV_PROGRAM: UYV color transform program constant (SDK-compatible)
-    0, 1, -1, -1, 1, 1,       # Channel 0 (R): subtract G*1, div by 1, chroma=1
-    2, 1, -1, -1, 1, 1,       # Channel 2 (B): subtract G*1, div by 1, chroma=1
-    1, 0, 1, 2, 1, -1, 4, 0,  # Channel 1 (G): add (R+B)/4, div by 4, chroma=0
-    -1                         # End of program
+    0,
+    1,
+    -1,
+    -1,
+    1,
+    1,  # Channel 0 (R): subtract G*1, div by 1, chroma=1
+    2,
+    1,
+    -1,
+    -1,
+    1,
+    1,  # Channel 2 (B): subtract G*1, div by 1, chroma=1
+    1,
+    0,
+    1,
+    2,
+    1,
+    -1,
+    4,
+    0,  # Channel 1 (G): add (R+B)/4, div by 4, chroma=0
+    -1,  # End of program
 ]
 
 # A710 transform for RGB order
@@ -38,10 +55,29 @@ TRANSFORM_UYV_PROGRAM = [  # cm:b2c3d4 — TRANSFORM_UYV_PROGRAM: UYV color tran
 # B -= (G * 2 + R) / 2 (chroma)
 # G += (B * 2 + R * 3) / 8 (luma)
 TRANSFORM_A710_RGB = [
-    0, 1, -1, -1, 1, 1,                   # R -= G, chroma
-    2, 1, -2, 0, -1, -1, 2, 1,            # B -= (G*2 + R)/2, chroma
-    1, 2, 2, 0, 3, -1, 8, 0,              # G += (B*2 + R*3)/8, luma
-    -1
+    0,
+    1,
+    -1,
+    -1,
+    1,
+    1,  # R -= G, chroma
+    2,
+    1,
+    -2,
+    0,
+    -1,
+    -1,
+    2,
+    1,  # B -= (G*2 + R)/2, chroma
+    1,
+    2,
+    2,
+    0,
+    3,
+    -1,
+    8,
+    0,  # G += (B*2 + R*3)/8, luma
+    -1,
 ]
 
 
@@ -432,6 +468,7 @@ def get_chroma_flags(
             is_chroma[c] = 0
 
     return is_chroma
+
 
 # =============================================================================
 # Custom Transform Building Utilities

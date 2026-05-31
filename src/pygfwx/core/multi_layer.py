@@ -121,16 +121,12 @@ class MultiLayerImage:  # cm:c0d1e2 — MultiLayerImage dataclass: interleaved m
             elif layer_data.ndim == 3 and layer_data.shape[2] == 1:
                 self.data[:, :, start_ch] = layer_data[:, :, 0]
             else:
-                raise ValueError(
-                    f"Expected shape (H, W) or (H, W, 1), got {layer_data.shape}"
-                )
+                raise ValueError(f"Expected shape (H, W) or (H, W, 1), got {layer_data.shape}")
         else:
             if layer_data.ndim == 3 and layer_data.shape[2] == self.channels:
                 self.data[:, :, start_ch:end_ch] = layer_data
             else:
-                raise ValueError(
-                    f"Expected shape (H, W, {self.channels}), got {layer_data.shape}"
-                )
+                raise ValueError(f"Expected shape (H, W, {self.channels}), got {layer_data.shape}")
 
 
 def create_multi_layer(  # cm:f3a4b5 — create_multi_layer(): build MultiLayerImage from individual layer arrays
@@ -190,8 +186,7 @@ def create_multi_layer(  # cm:f3a4b5 — create_multi_layer(): build MultiLayerI
 
         if (lh, lw, lc) != (height, width, channels):
             raise ValueError(
-                f"Layer {i} shape ({lh}, {lw}, {lc}) doesn't match "
-                f"reference ({height}, {width}, {channels})"
+                f"Layer {i} shape ({lh}, {lw}, {lc}) doesn't match reference ({height}, {width}, {channels})"
             )
 
     # Create interleaved output
@@ -234,18 +229,14 @@ def split_layers(
 
     if image.ndim == 2:
         if total != 1:
-            raise ValueError(
-                f"2D image implies 1 total channel, but layers*channels={total}"
-            )
+            raise ValueError(f"2D image implies 1 total channel, but layers*channels={total}")
         return [image]
 
     if image.ndim != 3:
         raise ValueError(f"Expected 2D or 3D array, got {image.ndim}D")
 
     if image.shape[2] != total:
-        raise ValueError(
-            f"Image has {image.shape[2]} channels, expected {total}"
-        )
+        raise ValueError(f"Image has {image.shape[2]} channels, expected {total}")
 
     result = []
     for i in range(layers):
@@ -295,6 +286,4 @@ def validate_multi_layer_header(header: GFWXHeader) -> None:
     if header.channels < 1:
         raise ValueError(f"Invalid channels: {header.channels}")
     if header.layers * header.channels > 65536:
-        raise ValueError(
-            f"Total channels ({header.layers * header.channels}) exceeds maximum (65536)"
-        )
+        raise ValueError(f"Total channels ({header.layers * header.channels}) exceeds maximum (65536)")

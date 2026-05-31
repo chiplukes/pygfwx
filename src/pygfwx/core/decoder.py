@@ -146,7 +146,9 @@ def decode_coefficients(  # cm:a2b3c4d — decode_coefficients(): bitstream → 
             image[y0 + y, x0 + x] = s
 
 
-def _decode_with_context(context: Context, stream: BitReader, is_chroma: bool) -> int:  # cm:e5f6a7 — _decode_with_context(): context-adaptive Golomb-Rice coefficient decoding
+def _decode_with_context(
+    context: Context, stream: BitReader, is_chroma: bool
+) -> int:  # cm:e5f6a7 — _decode_with_context(): context-adaptive Golomb-Rice coefficient decoding
     """
     Decode a coefficient using context-adaptive mode selection.
 
@@ -225,8 +227,6 @@ def decode_block(
     # Decode from coarsest to finest
     has_dc = True
     while step >= 1:
-        decode_coefficients(
-            image, stream, x0, y0, x1, y1, step, scheme, quality, has_dc, is_chroma
-        )
+        decode_coefficients(image, stream, x0, y0, x1, y1, step, scheme, quality, has_dc, is_chroma)
         has_dc = False  # Only first level has DC
         step //= 2

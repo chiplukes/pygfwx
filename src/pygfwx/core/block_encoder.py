@@ -122,9 +122,7 @@ def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validat
     boost = 1 if quality == QUALITY_MAX else 8
 
     # Apply forward color transform (populates aux_data, returns program + chroma flags)
-    transform_program, is_chroma = _apply_forward_transform(
-        image, aux_data, boost, total_channels, color_transform
-    )
+    transform_program, is_chroma = _apply_forward_transform(image, aux_data, boost, total_channels, color_transform)
 
     # Apply forward wavelet transform to each channel
     for c in range(total_channels):

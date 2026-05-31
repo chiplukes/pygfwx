@@ -71,7 +71,9 @@ def pytest_collection_modifyitems(config, items):  # noqa: ARG001
 
 
 @pytest.fixture
-def reference_image() -> np.ndarray:  # cm:f2a3b4c — reference_image fixture: 64×64 mono 8-bit with mixed frequency content
+def reference_image() -> (
+    np.ndarray
+):  # cm:f2a3b4c — reference_image fixture: 64×64 mono 8-bit with mixed frequency content
     """Primary reference image (64x64 mono) with mixed frequency content.
 
     This is the main test image that should be used for most tests.

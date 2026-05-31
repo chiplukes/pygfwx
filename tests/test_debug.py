@@ -6,7 +6,6 @@ import pytest
 from pygfwx import QUALITY_MAX, encode
 from pygfwx.debug.hexdump import hexdump, print_hexdump
 
-
 # ── Test data ─────────────────────────────────────────────────────────────────
 
 
@@ -72,7 +71,7 @@ def test_hexdump_contains_hex_bytes(simple_gfwx):
     """Lines contain expected hex offset markers."""
     lines = hexdump(simple_gfwx)
     # At least one line should contain an offset address pattern
-    hex_lines = [l for l in lines if "000000" in l or "000010" in l]
+    hex_lines = [line for line in lines if "000000" in line or "000010" in line]
     assert hex_lines, "Expected at least one hex data line with offset"
 
 
@@ -138,6 +137,5 @@ def test_visualize_requires_matplotlib_for_plotting():
 
     from pygfwx.debug.visualize import _require_matplotlib
 
-    with patch.dict("sys.modules", {"matplotlib": None}):
-        with pytest.raises(ImportError, match="matplotlib"):
-            _require_matplotlib()
+    with patch.dict("sys.modules", {"matplotlib": None}), pytest.raises(ImportError, match="matplotlib"):
+        _require_matplotlib()

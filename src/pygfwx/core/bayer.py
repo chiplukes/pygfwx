@@ -96,7 +96,11 @@ def get_bayer_pattern(intent: Intent | int) -> BayerPattern | None:
     return None
 
 
-def get_bayer_sub_images(pattern: BayerPattern) -> list[BayerSubImage]:  # cm:f7a8b9 — get_bayer_sub_images(): describe 4 sub-images (ox,oy,color,chroma) for a pattern
+def get_bayer_sub_images(
+    pattern: BayerPattern,
+) -> list[
+    BayerSubImage
+]:  # cm:f7a8b9 — get_bayer_sub_images(): describe 4 sub-images (ox,oy,color,chroma) for a pattern
     """
     Get the 4 sub-images for a Bayer pattern.
 

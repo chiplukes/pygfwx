@@ -88,7 +88,9 @@ class HeaderParseError(Exception):
     pass
 
 
-def parse_header(data: bytes) -> tuple[GFWXHeader, int]:  # cm:e4f5a6 — parse_header(): deserialize 32-byte header + metadata
+def parse_header(
+    data: bytes,
+) -> tuple[GFWXHeader, int]:  # cm:e4f5a6 — parse_header(): deserialize 32-byte header + metadata
     """
     Parse a GFWX header from compressed data.
 
@@ -215,7 +217,9 @@ def read_metadata(data: bytes, header: GFWXHeader) -> bytes:
     return data[metadata_start:metadata_end]
 
 
-def write_header(header: GFWXHeader, metadata: bytes = b"") -> bytes:  # cm:b7c8d9 — write_header(): serialize header to bytes
+def write_header(
+    header: GFWXHeader, metadata: bytes = b""
+) -> bytes:  # cm:b7c8d9 — write_header(): serialize header to bytes
     """
     Write a GFWX header to bytes.
 
@@ -360,4 +364,3 @@ def create_default_header(  # cm:e0f1a2 — create_default_header(): convenience
         intent=intent,
         metadata_size=0,
     )
-

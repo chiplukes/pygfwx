@@ -33,9 +33,7 @@ def _require_matplotlib():
     try:
         import matplotlib  # noqa: F401
     except ImportError as e:
-        raise ImportError(
-            "matplotlib is required for visualization. Install it with: pip install matplotlib"
-        ) from e
+        raise ImportError("matplotlib is required for visualization. Install it with: pip install matplotlib") from e
 
 
 # ── Wavelet coefficient visualisation ────────────────────────────────────────
@@ -232,9 +230,7 @@ def plot_progressive_decode(
     if ncols == 1:
         axes = [axes]
 
-    fig.suptitle(
-        f"Progressive decode — {header.sizex}×{header.sizey} {header.channels}ch {header.bit_depth}-bit"
-    )
+    fig.suptitle(f"Progressive decode — {header.sizex}×{header.sizey} {header.channels}ch {header.bit_depth}-bit")
 
     for ax, size in zip(axes, sizes, strict=False):
         try:
@@ -285,7 +281,9 @@ def plot_channel_histograms(
         labels = ["gray"]
     else:
         channels = [arr[:, :, c] for c in range(arr.shape[2])]
-        labels = ["R", "G", "B", "A"][: len(channels)] if len(channels) <= 4 else [f"ch{c}" for c in range(len(channels))]
+        labels = (
+            ["R", "G", "B", "A"][: len(channels)] if len(channels) <= 4 else [f"ch{c}" for c in range(len(channels))]
+        )
 
     colors = ["red", "green", "blue", "gray", "purple", "orange"]
     fig, ax = plt.subplots(figsize=(8, 4))

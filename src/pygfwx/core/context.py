@@ -31,9 +31,7 @@ class Context(NamedTuple):  # cm:a8b9c0 — Context NamedTuple: (sum, sum2) stat
     sum2: int
 
 
-def _add_context(
-    x: int, weight: int, sum_val: int, sum2_val: int, count: int
-) -> tuple[int, int, int]:
+def _add_context(x: int, weight: int, sum_val: int, sum2_val: int, count: int) -> tuple[int, int, int]:
     """
     Add a coefficient value to the running context statistics.
 
@@ -216,7 +214,9 @@ def select_coding_mode(  # cm:a4b5c6 — select_coding_mode(): context → (inte
         return ("signed", 4)
 
 
-def update_fast_context(context: Context, value: int) -> Context:  # cm:d7e8f9 — update_fast_context(): FAST mode exponential-decay update
+def update_fast_context(
+    context: Context, value: int
+) -> Context:  # cm:d7e8f9 — update_fast_context(): FAST mode exponential-decay update
     """
     Update context using the FAST encoder's decaying moment method.
 
@@ -237,7 +237,9 @@ def update_fast_context(context: Context, value: int) -> Context:  # cm:d7e8f9 �
     return Context(new_sum, new_sum2)
 
 
-def compute_run_coder_fast(context: Context) -> int:  # cm:a0b1c2 — compute_run_coder_fast(): FAST mode run-length pot selection
+def compute_run_coder_fast(
+    context: Context,
+) -> int:  # cm:a0b1c2 — compute_run_coder_fast(): FAST mode run-length pot selection
     """
     Compute run coder parameter for FAST encoder mode.
 
@@ -261,7 +263,9 @@ def compute_run_coder_fast(context: Context) -> int:  # cm:a0b1c2 — compute_ru
         return 0
 
 
-def compute_run_coder_contextual(context: Context, quality: int) -> int:  # cm:d3e4f5 — compute_run_coder_contextual(): CONTEXTUAL mode run-length pot
+def compute_run_coder_contextual(
+    context: Context, quality: int
+) -> int:  # cm:d3e4f5 — compute_run_coder_contextual(): CONTEXTUAL mode run-length pot
     """
     Compute run coder parameter for CONTEXTUAL encoder mode.
 
@@ -291,9 +295,7 @@ def compute_run_coder_contextual(context: Context, quality: int) -> int:  # cm:d
             return 0
 
 
-def compute_run_coder(
-    context: Context, value: int, current_run_coder: int, quality: int, encoder_fast: bool
-) -> int:
+def compute_run_coder(context: Context, value: int, current_run_coder: int, quality: int, encoder_fast: bool) -> int:
     """
     Compute the run-length coder parameter based on context.
 

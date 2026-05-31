@@ -267,9 +267,7 @@ class TestCreateUniformBayerImage:
 
     def test_rggb_uniform(self):
         """Test RGGB uniform image with known values."""
-        image = create_uniform_bayer_image(
-            4, 4, r_value=100, g_value=150, b_value=200, pattern=BayerPattern.RGGB
-        )
+        image = create_uniform_bayer_image(4, 4, r_value=100, g_value=150, b_value=200, pattern=BayerPattern.RGGB)
 
         # RGGB pattern:
         # R G R G    (row 0)
@@ -295,9 +293,7 @@ class TestCreateUniformBayerImage:
 
     def test_grbg_uniform(self):
         """Test GRBG uniform image."""
-        image = create_uniform_bayer_image(
-            4, 4, r_value=100, g_value=150, b_value=200, pattern=BayerPattern.GRBG
-        )
+        image = create_uniform_bayer_image(4, 4, r_value=100, g_value=150, b_value=200, pattern=BayerPattern.GRBG)
 
         # GRBG pattern:
         # G R G R    (row 0)
@@ -355,9 +351,7 @@ class TestBayerBlockDecoder:
     def test_decode_image_with_bayer_intent(self, sdk_wrapper):
         """Test that decode_image handles Bayer intent."""
         # Create a Bayer test image
-        image = create_uniform_bayer_image(
-            32, 32, r_value=100, g_value=150, b_value=200, pattern=BayerPattern.RGGB
-        )
+        image = create_uniform_bayer_image(32, 32, r_value=100, g_value=150, b_value=200, pattern=BayerPattern.RGGB)
 
         # Encode with SDK using Bayer intent
         compressed = sdk_wrapper.encode(
@@ -383,9 +377,7 @@ class TestBayerBlockDecoder:
 
     def test_decode_bayer_lossy(self, sdk_wrapper):
         """Test lossy Bayer decoding."""
-        image = create_uniform_bayer_image(
-            32, 32, r_value=100, g_value=150, b_value=200, pattern=BayerPattern.RGGB
-        )
+        image = create_uniform_bayer_image(32, 32, r_value=100, g_value=150, b_value=200, pattern=BayerPattern.RGGB)
 
         # Encode with lossy quality
         compressed = sdk_wrapper.encode(

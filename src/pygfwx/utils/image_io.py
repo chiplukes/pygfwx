@@ -23,7 +23,9 @@ _16BIT_GRAY_MODES = {"I", "I;16", "I;16B", "I;16L", "I;16S"}
 _16BIT_FORMATS = {".png", ".tif", ".tiff"}
 
 
-def load_image(path: str | Path) -> np.ndarray:  # cm:d4e5f6a — load_image(): read PNG/JPEG/TIFF → (H,W) or (H,W,C) uint8/uint16
+def load_image(
+    path: str | Path,
+) -> np.ndarray:  # cm:d4e5f6a — load_image(): read PNG/JPEG/TIFF → (H,W) or (H,W,C) uint8/uint16
     """Load an image file as a NumPy array.
 
     Supports PNG, JPEG, and TIFF.  8-bit images return uint8 arrays;
@@ -67,7 +69,9 @@ def load_image(path: str | Path) -> np.ndarray:  # cm:d4e5f6a — load_image(): 
     return arr.astype(np.uint8)
 
 
-def save_image(image: np.ndarray, path: str | Path) -> None:  # cm:b7c8d9e — save_image(): write (H,W)/(H,W,C) uint8/uint16 → PNG/JPEG/TIFF
+def save_image(
+    image: np.ndarray, path: str | Path
+) -> None:  # cm:b7c8d9e — save_image(): write (H,W)/(H,W,C) uint8/uint16 → PNG/JPEG/TIFF
     """Save a NumPy image array to a file.
 
     Format is inferred from the file extension.  JPEG only supports 8-bit;

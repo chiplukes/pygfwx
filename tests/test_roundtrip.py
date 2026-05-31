@@ -7,7 +7,8 @@ using the pure Python implementation.
 
 import numpy as np
 import pytest
-from pygfwx import encode, decode, Filter, Encoder, QUALITY_MAX
+
+from pygfwx import QUALITY_MAX, Encoder, Filter, decode, encode
 from pygfwx.core.codec import decode_full, get_header
 
 
@@ -159,7 +160,7 @@ class TestDecodeMetadata:
         image = np.zeros((16, 16), dtype=np.uint8)
         encoded = encode(image, quality=QUALITY_MAX, filter=Filter.LINEAR)
         header = get_header(encoded)
-        
+
         assert header is not None
         assert header.sizex == 16
         assert header.sizey == 16
@@ -170,7 +171,7 @@ class TestDecodeMetadata:
         image = np.zeros((16, 16, 3), dtype=np.uint8)
         encoded = encode(image, quality=QUALITY_MAX)
         header = get_header(encoded)
-        
+
         assert header.channels == 3
 
     def test_decode_full_returns_result(self):
@@ -178,7 +179,7 @@ class TestDecodeMetadata:
         image = np.zeros((16, 16), dtype=np.uint8)
         encoded = encode(image, quality=QUALITY_MAX)
         result = decode_full(encoded)
-        
+
         assert result.image is not None
         assert result.header is not None
         np.testing.assert_array_equal(result.image, image)

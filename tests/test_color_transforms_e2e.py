@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from pygfwx import QUALITY_MAX, decode, encode
-from pygfwx.core.header import Encoder, Filter, Intent
+from pygfwx.core.header import Encoder, Filter
 
 
 def _rgb_image(h: int, w: int, seed: int = 0) -> np.ndarray:

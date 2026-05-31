@@ -28,9 +28,7 @@ class TestUYVTransform:
     def test_forward_basic(self):
         """Test forward transform on simple RGB data."""
         # Create a simple 2x2 RGB image
-        image = np.array(
-            [[[100, 50, 75], [200, 100, 150]], [[50, 25, 30], [150, 75, 100]]], dtype=np.uint8
-        )
+        image = np.array([[[100, 50, 75], [200, 100, 150]], [[50, 25, 30], [150, 75, 100]]], dtype=np.uint8)
 
         result, program = forward_transform_uyv(image, boost=1)
 
@@ -63,9 +61,7 @@ class TestUYVTransform:
 
     def test_roundtrip(self):
         """Test forward then inverse returns original."""
-        image = np.array(
-            [[[100, 50, 75], [200, 100, 150]], [[50, 25, 30], [150, 75, 100]]], dtype=np.uint8
-        )
+        image = np.array([[[100, 50, 75], [200, 100, 150]], [[50, 25, 30], [150, 75, 100]]], dtype=np.uint8)
 
         boost = 8
         transformed, _ = forward_transform_uyv(image, boost=boost)
@@ -380,4 +376,3 @@ class TestTransformSDKCompatibility:
             encoded = encode(image, quality=1024)
             decoded = decode(encoded)
             np.testing.assert_array_equal(decoded, image, f"Failed for {channels} channels")
-

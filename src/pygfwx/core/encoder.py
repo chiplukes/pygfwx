@@ -212,8 +212,6 @@ def encode_block(
     # Encode from coarsest to finest
     has_dc = True
     while step >= 1:
-        encode_coefficients(
-            image, stream, x0, y0, x1, y1, step, scheme, quality, has_dc, is_chroma
-        )
+        encode_coefficients(image, stream, x0, y0, x1, y1, step, scheme, quality, has_dc, is_chroma)
         has_dc = False  # Only first level has DC
         step //= 2

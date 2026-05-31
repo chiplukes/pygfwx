@@ -21,7 +21,6 @@ Example:
     >>> decoded = decode(compressed)
 """
 
-
 import numpy as np
 
 from pygfwx.core.block_decoder import DecodeResult, decode_image

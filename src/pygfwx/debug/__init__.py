@@ -15,4 +15,3 @@ Usage::
 from pygfwx.debug.hexdump import hexdump, print_hexdump
 
 __all__ = ["hexdump", "print_hexdump"]
-

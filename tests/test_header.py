@@ -387,4 +387,3 @@ class TestWriteHeaderSDKComparison:
         # Compare fixed header portion (first 32 bytes)
         # Note: SDK may have metadata, so just compare fixed part
         assert our_bytes[:32] == sdk_compressed[:32]
-

@@ -81,7 +81,6 @@ class TestDequantize:
         """Test that lossy dequantization scales coefficients."""
         image = np.array([[10, 0, 0, 0], [0, 5, 0, 0], [0, 0, 3, 0], [0, 0, 0, 1]], dtype=np.int32)
 
-
         # Low quality should scale up coefficients
         dequantize(image, 0, 0, 4, 4, 1, 100, 0, 1024)
 

@@ -122,9 +122,7 @@ def decode_image(  # cm:e3f4a5 â€” decode_image(): full decode pipeline (headerâ
 
     # Parse transform program (after header/metadata)
     stream = BitReader(data[header_end:])
-    transform_program, transform_steps, is_chroma = _parse_transform_program(
-        stream, total_channels
-    )
+    transform_program, transform_steps, is_chroma = _parse_transform_program(stream, total_channels)
     stream.flush_read_word()
 
     # Calculate quality values
@@ -188,9 +186,7 @@ def decode_image(  # cm:e3f4a5 â€” decode_image(): full decode pipeline (headerâ
 
     # Apply inverse color transform (if present)
     if transform_program and transform_steps:
-        _apply_inverse_transform(
-            aux_data, transform_program, transform_steps, is_chroma, boost
-        )
+        _apply_inverse_transform(aux_data, transform_program, transform_steps, is_chroma, boost)
 
     # Convert to output format
     image = _convert_to_output(aux_data, header, sizex_down, sizey_down, boost)
@@ -254,9 +250,7 @@ def _dequantize_and_unlift_bayer(
     unlift(channel_data, 0, 0, sizex_down, sizey_down, 1, Filter(header.filter))
 
 
-def _parse_transform_program(
-    stream: BitReader, num_channels: int
-) -> tuple[list[int], list[int], list[int]]:
+def _parse_transform_program(stream: BitReader, num_channels: int) -> tuple[list[int], list[int], list[int]]:
     """
     Parse the color transform program from the bitstream.
 
@@ -296,9 +290,7 @@ def _parse_transform_program(
             if other_channel < 0:
                 break
             if other_channel >= num_channels:
-                raise ValueError(
-                    f"Transform other channel {other_channel} >= num_channels"
-                )
+                raise ValueError(f"Transform other channel {other_channel} >= num_channels")
 
             factor = signed_decode(2, stream)
             program.append(factor)
