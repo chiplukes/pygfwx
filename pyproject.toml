@@ -26,6 +26,11 @@ dependencies = [
     "matplotlib>=3.7.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/chiplukes/pygfwx"
+Repository = "https://github.com/chiplukes/pygfwx"
+Issues = "https://github.com/chiplukes/pygfwx/issues"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
