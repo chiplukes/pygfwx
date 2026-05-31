@@ -21,7 +21,7 @@ Example:
     >>> decoded = decode(compressed)
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"
 
 # cm:a1b2c3 — Package entry point: public API exports and __version__
 # Import high-level API from core

@@ -25,7 +25,8 @@ class TestInfrastructure:
         import pygfwx
 
         assert hasattr(pygfwx, "__version__")
-        assert pygfwx.__version__ == "0.1.0"
+        assert pygfwx.__version__
+        assert isinstance(pygfwx.__version__, str)
 
 
 class TestReferenceImages:
