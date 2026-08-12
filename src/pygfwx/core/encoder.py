@@ -13,6 +13,8 @@ encoded neighbors to select the optimal encoding mode.
 Reference: gfwx.h encode() lines 476-558
 """
 
+from collections.abc import Callable
+
 import numpy as np
 
 from pygfwx.core.bitstream import BitWriter
@@ -39,6 +41,8 @@ def encode_coefficients(  # cm:a6b7c8 â€” encode_coefficients(): wavelet block â
     quality: int,
     has_dc: bool,
     is_chroma: bool,
+    *,
+    keep: Callable[[int, int], bool] | None = None,
 ) -> None:
     """
     Encode wavelet coefficients from the image array into the bitstream.
@@ -56,6 +60,23 @@ def encode_coefficients(  # cm:a6b7c8 â€” encode_coefficients(): wavelet block â
         quality: Quality parameter (1024 = lossless).
         has_dc: True if this block contains the DC coefficient.
         is_chroma: True if this is a chroma channel (affects thresholds).
+        keep: Optional predicate ``(x, y) -> bool`` over ABSOLUTE image
+            coordinates. When given, any non-both-even position for which
+            ``keep`` returns False is skipped entirely -- not run-length
+            absorbed, not context-updated, not encoded -- as if it were not
+            part of the raster sequence at all. Defaults to None (encode
+            every position, identical to prior behavior for every existing
+            caller). Added for gfwx-fpga's multi-core golden model
+            (masked_symbol_stream in top/sim/golden_stencil.py): a
+            hardware core that masks out its overlap-fringe columns
+            (coeff_frame_buf2's keep_lo/keep_hi) never presents those
+            positions to its run-length coder at all -- filtering the
+            OUTPUT symbol list after an unmasked encode (the naive
+            approach) gives the run coder a different input sequence than
+            the real hardware sees, and diverges as soon as a zero-run
+            would have crossed a masked position. This lets the golden
+            model keep wrapping the real encoder (not reimplementing it)
+            while still matching that behavior exactly.
 
     Note:
         The encoding order is arranged so that (x | y) & step == 1,
@@ -84,6 +105,13 @@ def encode_coefficients(  # cm:a6b7c8 â€” encode_coefficients(): wavelet block â
         x_step = step if (y & step) else step * 2
 
         for x in range(x_step - step, sizex, x_step):
+            if keep is not None and not keep(x0 + x, y0 + y):
+                # Masked out: not run-absorbed, not context-updated, not
+                # encoded -- invisible to this loop's state exactly as if
+                # it were never part of the raster sequence (see `keep`'s
+                # docstring above).
+                continue
+
             s = int(image[y0 + y, x0 + x])
 
             if run_coder and s == 0:
