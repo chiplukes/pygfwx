@@ -31,6 +31,7 @@ def quantize(  # cm:b6c7d8 — quantize(): forward scalar quantization of wavele
     quality: int,
     min_q: int,
     max_q: int,
+    max_levels: int | None = None,
 ) -> None:
     """
     Apply forward quantization to wavelet coefficients (encoding).
@@ -49,16 +50,31 @@ def quantize(  # cm:b6c7d8 — quantize(): forward scalar quantization of wavele
         quality: Base quality parameter (1-1024).
         min_q: Minimum quality threshold.
         max_q: Maximum quality * boost (usually 1024 * 8 = 8192).
+        max_levels: Must match whatever was passed to the matching `lift()`
+            call (see that function's own docstring for the full
+            semantics). When set, quantizes normally through `max_levels`
+            levels, then recurses `quantize()` on the remaining LL
+            sub-array (unbounded, fresh `quality` progression from the
+            same base `quality`) as its own self-contained image, via a
+            numpy strided view.
 
     Note:
         For lossless encoding (quality=1024), no actual quantization occurs
         since q >= maxQ causes early exit.
     """
+    if max_levels is not None and max_levels < 1:
+        raise ValueError(f"max_levels must be >= 1 if set, got {max_levels}")
+
     sizex = x1 - x0
     sizey = y1 - y0
     skip = step
+    base_quality = quality  # captured before the loop below doubles `quality`
 
+    levels_done = 0
     while skip < sizex and skip < sizey:
+        if max_levels is not None and levels_done >= max_levels:
+            break
+
         q = max(max(1, min_q), quality)
         if q >= max_q:
             break
@@ -77,6 +93,13 @@ def quantize(  # cm:b6c7d8 — quantize(): forward scalar quantization of wavele
 
         skip *= 2
         quality = min(max_q, quality * 2)  # [MAGIC] Approximates JPEG 2000 baseline
+        levels_done += 1
+
+    if max_levels is not None and levels_done >= max_levels:
+        sub = image[y0:y1:skip, x0:x1:skip]
+        sub_h, sub_w = sub.shape
+        if sub_h > 1 or sub_w > 1:
+            quantize(sub, 0, 0, sub_w, sub_h, 1, base_quality, min_q, max_q)
 
 
 def dequantize(  # cm:e9f0a1 — dequantize(): inverse quantization with midpoint rounding
@@ -89,6 +112,7 @@ def dequantize(  # cm:e9f0a1 — dequantize(): inverse quantization with midpoin
     quality: int,
     min_q: int,
     max_q: int,
+    max_levels: int | None = None,
 ) -> None:
     """
     Apply inverse quantization to wavelet coefficients (decoding).
@@ -108,16 +132,30 @@ def dequantize(  # cm:e9f0a1 — dequantize(): inverse quantization with midpoin
         quality: Base quality parameter (may be shifted for downsampling).
         min_q: Minimum quality threshold.
         max_q: Maximum quality * boost (usually 1024 * 8 = 8192).
+        max_levels: Must match whatever was passed to the matching
+            `quantize()` call. Unlike `unlift()`, order relative to the
+            main region doesn't matter here (dequantizing one position
+            never depends on another's dequantized value) — the remainder
+            sub-array is recursed into after the main capped levels,
+            purely for structural consistency with `quantize()`.
 
     Note:
         For lossless decoding (quality >= 1024), no dequantization occurs
         since coefficients were not quantized during encoding.
     """
+    if max_levels is not None and max_levels < 1:
+        raise ValueError(f"max_levels must be >= 1 if set, got {max_levels}")
+
     sizex = x1 - x0
     sizey = y1 - y0
     skip = step
+    base_quality = quality
 
+    levels_done = 0
     while skip < sizex and skip < sizey:
+        if max_levels is not None and levels_done >= max_levels:
+            break
+
         q = max(max(1, min_q), quality)
         if q >= max_q:
             break
@@ -140,6 +178,13 @@ def dequantize(  # cm:e9f0a1 — dequantize(): inverse quantization with midpoin
 
         skip *= 2
         quality = min(max_q, quality * 2)  # [MAGIC] Approximates JPEG 2000 baseline
+        levels_done += 1
+
+    if max_levels is not None and levels_done >= max_levels:
+        sub = image[y0:y1:skip, x0:x1:skip]
+        sub_h, sub_w = sub.shape
+        if sub_h > 1 or sub_w > 1:
+            dequantize(sub, 0, 0, sub_w, sub_h, 1, base_quality, min_q, max_q)
 
 
 def quantize_channel(

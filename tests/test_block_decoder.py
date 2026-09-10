@@ -114,7 +114,7 @@ class TestGetBlockInfo:
             chroma_scale=1,
             block_size=6,  # 2^6 = 64, larger than image
             filter=0,
-            quantization=0,
+            max_levels=0,
             encoder=0,
             intent=0,
             metadata_size=0,
@@ -147,7 +147,7 @@ class TestGetBlockInfo:
             chroma_scale=1,
             block_size=4,  # 2^4 = 16 per step
             filter=0,
-            quantization=0,
+            max_levels=0,
             encoder=0,
             intent=0,
             metadata_size=0,
@@ -176,7 +176,7 @@ class TestGetBlockInfo:
             chroma_scale=1,
             block_size=6,  # Large blocks
             filter=0,
-            quantization=0,
+            max_levels=0,
             encoder=0,
             intent=0,
             metadata_size=0,
@@ -270,7 +270,7 @@ class TestDecodeResultDataclass:
             chroma_scale=1,
             block_size=6,
             filter=0,
-            quantization=0,
+            max_levels=0,
             encoder=0,
             intent=0,
             metadata_size=0,

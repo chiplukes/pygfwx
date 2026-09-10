@@ -71,7 +71,18 @@ class GFWXHeader:  # cm:b1c2d3 — GFWXHeader dataclass: all file-format fields 
     chroma_scale: int
     block_size: int
     filter: Filter
-    quantization: int
+    # Repurposes what was a write-only, always-zero reserved byte
+    # ("quantization" — written but never read anywhere in this codebase,
+    # and confirmed always 0 in real SDK-produced files too, per
+    # test_header.py's own cross-compatibility check). 0 = standard,
+    # unbounded GFWX recursion (bit-for-bit backward compatible with
+    # every file written before this field existed). N>=1 = the
+    # deliberate capped-recursion divergence documented in gfwx-fpga's
+    # own notes/gfwx_capped_recursion_explainer.md — decompose normally
+    # through level N, then recurse on the remaining LL sub-array as its
+    # own self-contained image. See `lift()`'s own docstring for the
+    # full semantics this implements.
+    max_levels: int
     encoder: Encoder
     intent: Intent
     metadata_size: int  # Size in 32-bit words
@@ -80,6 +91,16 @@ class GFWXHeader:  # cm:b1c2d3 — GFWXHeader dataclass: all file-format fields 
     def is_lossless(self) -> bool:
         """Return True if quality is maximum (lossless)."""
         return self.quality == QUALITY_MAX
+
+    @property
+    def max_levels_or_none(self) -> int | None:
+        """`max_levels` as the `lift()`/`unlift()`/`encode()`/`decode()`
+        convention expects it: `None` for unbounded (the standard GFWX
+        default, and what every file written before this field existed
+        already has, since this repurposes a previously write-only,
+        always-zero reserved byte — see `max_levels`'s own field
+        docstring below)."""
+        return self.max_levels if self.max_levels > 0 else None
 
 
 class HeaderParseError(Exception):
@@ -141,8 +162,9 @@ def parse_header(
     block_size = reader.get_bits(5) + 2
     filter_val = reader.get_bits(8)
 
-    # Quantization, encoder, intent
-    quantization = reader.get_bits(8)
+    # max_levels (repurposed reserved byte — see GFWXHeader's own field
+    # comment), encoder, intent
+    max_levels = reader.get_bits(8)
     encoder_val = reader.get_bits(8)
     intent_val = reader.get_bits(8)
 
@@ -177,7 +199,7 @@ def parse_header(
         chroma_scale=chroma_scale,
         block_size=block_size,
         filter=filter_type,
-        quantization=quantization,
+        max_levels=max_levels,
         encoder=encoder_type,
         intent=intent_type,
         metadata_size=metadata_size,
@@ -236,7 +258,7 @@ def write_header(
     - chroma_scale - 1 (8 bits)
     - block_size - 2 (5 bits)
     - filter (8 bits)
-    - quantization (8 bits)
+    - max_levels (8 bits) — repurposed reserved byte, 0 = unbounded
     - encoder (8 bits)
     - intent (8 bits)
     - metadata_size in words (32 bits)
@@ -292,9 +314,9 @@ def write_header(
     # Block size (stored as value - 2, 5 bits)
     writer.put_bits(header.block_size - 2, 5)
 
-    # Filter, quantization, encoder, intent (8 bits each)
+    # Filter, max_levels, encoder, intent (8 bits each)
     writer.put_bits(int(header.filter), 8)
-    writer.put_bits(header.quantization, 8)
+    writer.put_bits(header.max_levels, 8)
     writer.put_bits(int(header.encoder), 8)
     writer.put_bits(int(header.intent), 8)
 
@@ -324,6 +346,7 @@ def create_default_header(  # cm:e0f1a2 — create_default_header(): convenience
     intent: Intent = Intent.GENERIC,
     chroma_scale: int = 1,
     block_size: int = 7,
+    max_levels: int | None = None,
 ) -> GFWXHeader:
     """
     Create a GFWXHeader with default values.
@@ -343,10 +366,21 @@ def create_default_header(  # cm:e0f1a2 — create_default_header(): convenience
         intent: Color intent.
         chroma_scale: Chroma subsampling scale.
         block_size: Block size parameter (2-33, typical 7).
+        max_levels: None (default) for standard, unbounded GFWX recursion.
+            A positive integer for the capped-recursion divergence (see
+            `lift()`'s own docstring and
+            gfwx-fpga's notes/gfwx_capped_recursion_explainer.md) — must
+            fit in 8 bits (1-255).
 
     Returns:
         A configured GFWXHeader.
+
+    Raises:
+        ValueError: If max_levels is out of the representable range.
     """
+    if max_levels is not None and not (1 <= max_levels <= 255):
+        raise ValueError(f"max_levels must be 1-255 if set, got {max_levels}")
+
     return GFWXHeader(
         version=1,
         sizex=width,
@@ -359,7 +393,7 @@ def create_default_header(  # cm:e0f1a2 — create_default_header(): convenience
         chroma_scale=chroma_scale,
         block_size=block_size,
         filter=filter_type,
-        quantization=0,
+        max_levels=max_levels if max_levels is not None else 0,
         encoder=encoder,
         intent=intent,
         metadata_size=0,

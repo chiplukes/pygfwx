@@ -375,7 +375,7 @@ class TestWriteHeaderSDKComparison:
             chroma_scale=sdk_header.chroma_scale,
             block_size=sdk_header.block_size,
             filter=Filter(sdk_header.filter.value),
-            quantization=sdk_header.quantization,
+            max_levels=sdk_header.quantization,
             encoder=Encoder(sdk_header.encoder.value),
             intent=Intent(sdk_header.intent.value),
             metadata_size=0,  # SDK has metadata, but we'll compare fixed part only

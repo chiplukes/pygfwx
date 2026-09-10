@@ -61,6 +61,7 @@ def encode(  # cm:d4e5f6 — High-level encode() → bytes
     chroma_scale: int = 1,
     metadata: bytes = b"",
     color_transform: str | None = None,
+    max_levels: int | None = None,
 ) -> bytes:
     """
     Encode an image to GFWX format.
@@ -90,6 +91,13 @@ def encode(  # cm:d4e5f6 — High-level encode() → bytes
             - None: no transform (default)
             - "uyv": YUV-like transform (improves compression for natural images)
             - "a710": A710 higher-quality transform
+        max_levels: None (default) for standard, unbounded GFWX recursion.
+            A positive integer for the capped-recursion divergence — see
+            `pygfwx.core.lifting.lift`'s own docstring for the full
+            semantics, and gfwx-fpga's own
+            notes/gfwx_capped_recursion_explainer.md for the rationale
+            and real measured cost. Recorded in the header automatically;
+            `decode()` needs no corresponding argument.
 
     Returns:
         Compressed GFWX data as bytes.
@@ -112,6 +120,7 @@ def encode(  # cm:d4e5f6 — High-level encode() → bytes
         chroma_scale=chroma_scale,
         metadata=metadata,
         color_transform=color_transform,
+        max_levels=max_levels,
     )
     return result.data
 

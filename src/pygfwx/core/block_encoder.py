@@ -63,6 +63,7 @@ def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validat
     chroma_scale: int = 1,
     metadata: bytes = b"",
     color_transform: str | None = None,
+    max_levels: int | None = None,
 ) -> EncodeResult:
     """
     Encode an image to GFWX format.
@@ -85,6 +86,16 @@ def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validat
             - None: identity (no transform, default)
             - "uyv": UYV/YUV-like (R-=G, B-=G, G+=(R'+B')/4)
             - "a710": A710 higher-quality color transform
+        max_levels: None (default) for standard, unbounded GFWX recursion
+            (bit-for-bit unchanged from before this parameter existed).
+            A positive integer for the capped-recursion divergence — see
+            `lift()`'s own docstring (pygfwx/core/lifting.py) and
+            gfwx-fpga's notes/gfwx_capped_recursion_explainer.md for the
+            full rationale and real measured cost. Recorded in the
+            header so `decode()` doesn't need it passed back in.
+            NOTE: not yet verified in combination with Bayer mode or
+            `downsampling=` in `decode()` — flagged as a known gap, not
+            silently assumed to work.
 
     Returns:
         EncodeResult containing compressed data and header.
@@ -112,6 +123,7 @@ def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validat
         encoder=encoder,
         intent=intent,
         chroma_scale=chroma_scale,
+        max_levels=max_levels,
     )
 
     # Convert to internal format (int32 for wavelet processing)
@@ -126,7 +138,7 @@ def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validat
 
     # Apply forward wavelet transform to each channel
     for c in range(total_channels):
-        lift(aux_data[c], 0, 0, width, height, 1, Filter(header.filter))
+        lift(aux_data[c], 0, 0, width, height, 1, Filter(header.filter), max_levels=max_levels)
 
     # Apply quantization (for lossy compression)
     if quality < QUALITY_MAX:
@@ -135,13 +147,14 @@ def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validat
 
         for c in range(total_channels):
             channel_quality = chroma_quality if is_chroma[c] else quality
-            quantize(aux_data[c], 0, 0, width, height, 1, channel_quality, 0, max_q)
+            quantize(aux_data[c], 0, 0, width, height, 1, channel_quality, 0, max_q, max_levels=max_levels)
 
     # Encode all blocks
     encoded_data = _encode_all_levels(
         aux_data=aux_data,
         header=header,
         is_chroma=is_chroma,
+        max_levels=max_levels,
     )
 
     # Build final output: header + transform program + encoded blocks
@@ -274,6 +287,10 @@ def _encode_all_levels(  # cm:b4c5d6 — _encode_all_levels(): resolution-level 
     aux_data: np.ndarray,
     header: GFWXHeader,
     is_chroma: list[int],
+    sizex: int | None = None,
+    sizey: int | None = None,
+    max_levels: int | None = None,
+    total_channels: int | None = None,
 ) -> bytes:
     """
     Encode all resolution levels for all channels.
@@ -286,28 +303,110 @@ def _encode_all_levels(  # cm:b4c5d6 — _encode_all_levels(): resolution-level 
     2. Block data (concatenated, each padded to 4-byte boundary)
 
     Args:
-        aux_data: Coefficient arrays shape (channels, height, width).
-        header: Header with encoding parameters.
+        aux_data: Coefficient arrays shape (channels, height, width) — for
+            a recursive remainder call (see `max_levels` below), a numpy
+            strided view into the parent's own array at that channel's
+            remainder sub-region, still shape (channels, sub_h, sub_w).
+        header: Header with encoding parameters. `header.sizex`/`sizey`
+            are used only for the TOP-level call (see `sizex`/`sizey`
+            below); quality/chroma_scale/block_size/encoder are reused
+            as-is at every recursion depth.
         is_chroma: Per-channel chroma flags.
+        sizex, sizey: Region dimensions to encode. Defaults to
+            `header.sizex`/`header.sizey` (the top-level call). A
+            recursive remainder call passes the remainder's own smaller
+            dimensions here instead — `header` itself is NOT copied/
+            resized, since nothing here needs its own sizex/sizey once
+            these parameters are supplied explicitly.
+        max_levels: None (default) for standard, unbounded encoding —
+            bit-for-bit unchanged from before this parameter existed.
+            When set (from `header.max_levels_or_none`), encodes normally
+            through `max_levels` levels for every channel, then — for
+            EACH channel independently — recurses into this same
+            function on that channel's own remainder sub-array (a numpy
+            strided view, matching `lift()`'s own convention), appending
+            that channel's own fully-encoded remainder bytes immediately
+            after the capped main levels. See `lift()`'s own docstring
+            for the full rationale; this must stay structurally
+            consistent with however `lift()`/`quantize()` were actually
+            called on `aux_data` beforehand, or the block boundaries
+            here won't line up with where real (non-padding) coefficients
+            actually live.
 
     Returns:
-        Encoded block data (all levels concatenated).
+        Encoded block data (all levels concatenated; remainder sections,
+        if any, appended per-channel after the capped main levels).
     """
-    total_channels = header.layers * header.channels
-    sizex = header.sizex
-    sizey = header.sizey
+    if total_channels is None:
+        total_channels = header.layers * header.channels
+    if sizex is None:
+        sizex = header.sizex
+    if sizey is None:
+        sizey = header.sizey
     chroma_quality = max(1, (header.quality + header.chroma_scale // 2) // header.chroma_scale)
 
-    # Find maximum step (coarsest level)
+    # Determine the coarsest step ACTUALLY PROCESSED by lift() on this
+    # exact (sizex, sizey, max_levels) -- MUST replicate lift()'s own
+    # `while step < sizex or step < sizey` condition and counting exactly
+    # (NOT the superficially-similar `step*2<sizex` shape below, which
+    # finds a different quantity and only coincides with it in the
+    # unbounded case -- confirmed by direct trace, this was a real bug in
+    # an earlier version of this code). See unlift()'s own matching
+    # derivation in lifting.py for why `min_step * 2**(levels_done-1)`
+    # is the right closed form once `levels_done` is counted this way.
     step = 1
-    while step * 2 < sizex or step * 2 < sizey:
+    levels_done = 0
+    capped = False
+    while step < sizex or step < sizey:
+        if max_levels is not None and levels_done >= max_levels:
+            capped = True
+            break
         step *= 2
+        levels_done += 1
+    remainder_step = step  # lift()'s own post-loop step == remainder granularity
+    coarsest_step = 1 << (levels_done - 1) if levels_done > 0 else 0
 
     # Accumulate all encoded data
     output = bytearray()
 
-    # Encode each resolution level
-    has_dc = True
+    if max_levels is not None and capped:
+        # Real dependency, not just a layout choice: a "coarsest main
+        # level" position's own ancestor context (get_context()'s own
+        # `image[py,px]` read) lives at spacing `remainder_step` -- i.e.
+        # in the remainder, which is COARSER than anything the main
+        # levels below process. `lift()`/`quantize()` already populated
+        # every value correctly regardless of order (they ran to
+        # completion on the whole array before this function ever
+        # started), but `encode_coefficients()`'s own byte-stream
+        # ordering doesn't matter for correctness here either way -- the
+        # reason this MUST come first is symmetry with `_decode_all_levels`,
+        # which genuinely cannot compute correct context for the main
+        # levels until the remainder's own (coarser) values exist in its
+        # own `aux_data`. Encoding the remainder first here keeps the
+        # byte stream in the same order the decoder needs to consume it.
+        for c in range(total_channels):
+            sub = aux_data[c, 0:sizey:remainder_step, 0:sizex:remainder_step]
+            sub_h, sub_w = sub.shape
+            if sub_h > 1 or sub_w > 1:
+                remainder_bytes = _encode_all_levels(
+                    sub[np.newaxis, :, :],
+                    header,
+                    is_chroma=[is_chroma[c]],
+                    sizex=sub_w,
+                    sizey=sub_h,
+                    max_levels=None,
+                    total_channels=1,
+                )
+                output.extend(remainder_bytes)
+
+    # Encode each resolution level, starting at the coarsest step actually
+    # processed (see derivation above) rather than whatever `step`
+    # happened to be after the tracking loop.
+    step = coarsest_step
+    # The true DC belongs to whatever recursion actually bottoms out --
+    # when capped, that's the remainder's own (just-encoded-above)
+    # innermost level, NOT this region's own coarsest processed level.
+    has_dc = not (max_levels is not None and capped)
     while step >= 1:
         block_size_log = header.block_size
 

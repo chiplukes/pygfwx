@@ -136,8 +136,16 @@ def decode_image(  # cm:e3f4a5 — decode_image(): full decode pipeline (header�
     # Check if this is Bayer mode
     is_bayer = intent_is_bayer(header.intent)
 
+    max_levels = header.max_levels_or_none
+    if max_levels is not None and (downsampling != 0 or is_bayer):
+        # Not yet verified — see _decode_all_levels's own docstring.
+        # Fail loudly rather than silently produce wrong output.
+        raise NotImplementedError(
+            "max_levels (capped-recursion) combined with downsampling!=0 or Bayer mode is not yet supported/verified"
+        )
+
     # Decode coefficient blocks for each resolution level
-    is_truncated = _decode_all_levels(
+    is_truncated, _ = _decode_all_levels(
         aux_data=aux_data,
         data=data,
         stream_offset=transform_end,
@@ -148,6 +156,7 @@ def decode_image(  # cm:e3f4a5 — decode_image(): full decode pipeline (header�
         is_chroma=is_chroma,
         chroma_quality=chroma_quality,
         is_bayer=is_bayer,
+        max_levels=max_levels,
     )
 
     # Dequantize and unlift each channel
@@ -179,10 +188,11 @@ def decode_image(  # cm:e3f4a5 — decode_image(): full decode pipeline (header�
                     (chroma_quality if is_chroma[c] else header.quality) << downsampling,
                     0,
                     QUALITY_MAX * boost,
+                    max_levels=max_levels,
                 )
 
             # Inverse wavelet transform
-            unlift(channel_data, 0, 0, sizex_down, sizey_down, 1, Filter(header.filter))
+            unlift(channel_data, 0, 0, sizex_down, sizey_down, 1, Filter(header.filter), max_levels=max_levels)
 
     # Apply inverse color transform (if present)
     if transform_program and transform_steps:
@@ -316,7 +326,11 @@ def _decode_all_levels(
     is_chroma: list[int],
     chroma_quality: int,
     is_bayer: bool = False,
-) -> bool:
+    sizex: int | None = None,
+    sizey: int | None = None,
+    max_levels: int | None = None,
+    total_channels: int | None = None,
+) -> tuple[bool, int]:
     """
     Decode all resolution levels for all channels.
 
@@ -324,33 +338,123 @@ def _decode_all_levels(
     for each channel at each level.
 
     Args:
-        aux_data: Output coefficient arrays shape (channels, height, width).
+        aux_data: Output coefficient arrays shape (channels, height, width)
+            — for a recursive remainder call (see `max_levels` below), a
+            view into the parent's own array at that channel's remainder
+            sub-region.
         data: Raw compressed data.
         stream_offset: Byte offset where block data starts.
         header: Parsed header.
         sizex_down: Downsampled width.
         sizey_down: Downsampled height.
-        downsampling: Downsampling factor.
+        downsampling: Downsampling factor. NOTE: combining this with
+            `max_levels` is not yet verified — only `downsampling=0` is
+            exercised by this project's own tests so far when
+            `max_levels` is set; `decode_image()` itself guards against
+            the combination.
         is_chroma: Per-channel chroma flags.
         chroma_quality: Quality for chroma channels.
-        is_bayer: If True, decode with Bayer sub-image offsets.
+        is_bayer: If True, decode with Bayer sub-image offsets. NOTE: not
+            yet verified in combination with `max_levels` either — see
+            above.
+        sizex, sizey: Region dimensions — defaults to `header.sizex`/
+            `header.sizey` for the top-level call; a recursive remainder
+            call passes the remainder's own smaller dimensions.
+        max_levels: None (default) for standard, unbounded decoding —
+            bit-for-bit unchanged from before this parameter existed.
+            When set, mirrors `_encode_all_levels`'s own semantics
+            exactly: decodes normally through `max_levels` levels, then
+            — for each channel independently — recurses into this same
+            function on that channel's own remainder sub-array to decode
+            the bytes the encoder appended there.
+        total_channels: Defaults to `header.layers * header.channels`; a
+            recursive remainder call passes 1.
 
     Returns:
-        True if data was truncated.
+        (is_truncated, pos): whether data was truncated, and the byte
+        offset immediately after everything this call (including any
+        remainder recursion) consumed — the caller needs this to know
+        where the NEXT channel's own remainder section starts, since
+        remainder sections are appended one after another with no
+        separate length field.
     """
-    total_channels = header.layers * header.channels
+    if total_channels is None:
+        total_channels = header.layers * header.channels
+    if sizex is None:
+        sizex = header.sizex
+    if sizey is None:
+        sizey = header.sizey
     is_truncated = False
 
-    # Find maximum step (coarsest level)
-    step = 1
-    while step * 2 < header.sizex or step * 2 < header.sizey:
-        step *= 2
+    # Coarsest step ACTUALLY PROCESSED by lift() on this (sizex, sizey,
+    # max_levels) -- see _encode_all_levels's own matching derivation for
+    # why this must replicate lift()'s own `step < sizex or step < sizey`
+    # condition exactly, not the superficially-similar `step*2<sizex`
+    # search below (kept for the max_levels=None path, which is exactly
+    # this project's own pre-existing, unmodified behavior).
+    if max_levels is not None:
+        step = 1
+        levels_done = 0
+        capped = False
+        while step < sizex or step < sizey:
+            if levels_done >= max_levels:
+                capped = True
+                break
+            step *= 2
+            levels_done += 1
+        remainder_step = step
+        step = (1 << (levels_done - 1)) if levels_done > 0 else 0
+    else:
+        capped = False
+        remainder_step = None
+        # Find maximum step (coarsest level) — original, unmodified logic.
+        step = 1
+        while step * 2 < sizex or step * 2 < sizey:
+            step *= 2
 
     # Current position in the data
     pos = stream_offset
 
-    # Decode each resolution level
-    has_dc = True
+    if max_levels is not None and capped:
+        # Real dependency, not just a layout choice: a "coarsest main
+        # level" position's own ancestor context (decode_coefficients()'s
+        # own internal `image[py,px]` read) lives at spacing
+        # `remainder_step` -- i.e. in the remainder, which is COARSER
+        # than anything the main levels below decode. Unlike encoding
+        # (where `aux_data` is already fully populated before any of this
+        # runs), decoding builds `aux_data` up progressively -- the
+        # remainder's own values must actually exist before the main
+        # levels' own context reads can be correct, not just before their
+        # bytes appear in the stream. `_encode_all_levels` writes the
+        # remainder's bytes first for exactly this reason, so this stays
+        # a straightforward sequential consume.
+        for c in range(total_channels):
+            sub = aux_data[c, 0:sizey:remainder_step, 0:sizex:remainder_step]
+            sub_h, sub_w = sub.shape
+            if sub_h > 1 or sub_w > 1:
+                sub_truncated, pos = _decode_all_levels(
+                    aux_data=sub[np.newaxis, :, :],
+                    data=data,
+                    stream_offset=pos,
+                    header=header,
+                    sizex_down=sub_w,
+                    sizey_down=sub_h,
+                    downsampling=0,
+                    is_chroma=[is_chroma[c]],
+                    chroma_quality=chroma_quality,
+                    is_bayer=False,
+                    sizex=sub_w,
+                    sizey=sub_h,
+                    max_levels=None,
+                    total_channels=1,
+                )
+                is_truncated = is_truncated or sub_truncated
+
+    # Decode each resolution level. The true DC belongs to whatever
+    # recursion actually bottoms out -- when capped, that's the
+    # remainder's own (just-decoded-above) innermost level, not this
+    # region's own coarsest processed level.
+    has_dc = not (max_levels is not None and capped)
     while (step >> downsampling) >= 1:
         step_down = step >> downsampling
         block_size_log = header.block_size  # block_size is already parsed as log2 + 2
@@ -359,8 +463,8 @@ def _decode_all_levels(
         bs = step << block_size_log
         bs_down = step_down << block_size_log
 
-        block_count_x = (header.sizex + bs - 1) // bs
-        block_count_y = (header.sizey + bs - 1) // bs
+        block_count_x = (sizex + bs - 1) // bs
+        block_count_y = (sizey + bs - 1) // bs
         block_count = block_count_x * block_count_y * total_channels
 
         # Check if we have enough data for block sizes
@@ -464,7 +568,7 @@ def _decode_all_levels(
         has_dc = False
         step //= 2
 
-    return is_truncated
+    return is_truncated, pos
 
 
 def _apply_inverse_transform(

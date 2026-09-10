@@ -117,6 +117,7 @@ def lift(  # cm:a2b3c4 — lift(): forward wavelet transform (spatial → wavele
     y1: int,
     step: int,
     filter_type: Filter,
+    max_levels: int | None = None,
 ) -> None:
     """
     Forward wavelet transform using the lifting scheme.
@@ -131,15 +132,42 @@ def lift(  # cm:a2b3c4 — lift(): forward wavelet transform (spatial → wavele
         x1, y1: Bottom-right corner (exclusive).
         step: Initial step size (usually 1).
         filter_type: Filter.LINEAR (5/3) or Filter.CUBIC (9/7).
+        max_levels: If None (default), recurse to the true DC coefficient,
+            matching the original GFWX format exactly (bit-for-bit
+            unchanged from before this parameter existed). If set to a
+            positive integer, decompose normally through `max_levels`
+            levels, then STOP recursing on the remaining LL sub-array in
+            place — instead, recursively invoke `lift()` again (unbounded)
+            on that sub-array AS ITS OWN SELF-CONTAINED IMAGE (a fresh
+            `x0=y0=0` origin, `step=1` call), operating on it via a numpy
+            strided view so the result still lands in-place in the same
+            underlying array. This is a deliberate divergence from
+            standard GFWX (see notes/gfwx_capped_recursion_explainer.md
+            in gfwx-fpga for the full rationale and real measured cost) —
+            it exists because a real-time streaming hardware encoder
+            cannot cheaply wait for a full recursion's own deepest levels,
+            which genuinely need close to the entire image's height of
+            lookahead once the recursion is more than a handful of levels
+            deep, while the *combined-image* remainder is small enough to
+            buffer whole and recurse over independently at negligible
+            cost. `unlift()`'s own `max_levels` must match whatever was
+            used here for a correct round trip.
 
     Note:
         After transform, even indices contain approximation coefficients (L)
         and odd indices contain detail coefficients (H), interleaved.
     """
+    if max_levels is not None and max_levels < 1:
+        raise ValueError(f"max_levels must be >= 1 if set, got {max_levels}")
+
     sizex = x1 - x0
     sizey = y1 - y0
 
+    levels_done = 0
     while step < sizex or step < sizey:
+        if max_levels is not None and levels_done >= max_levels:
+            break
+
         # Horizontal lifting
         if step < sizex:
             _lift_horizontal(image, x0, y0, sizex, sizey, step, filter_type)
@@ -149,6 +177,22 @@ def lift(  # cm:a2b3c4 — lift(): forward wavelet transform (spatial → wavele
             _lift_vertical(image, x0, y0, sizex, sizey, step, filter_type)
 
         step *= 2
+        levels_done += 1
+
+    if max_levels is not None and levels_done >= max_levels:
+        # Capped: `step` here is exactly the granularity of the remaining
+        # LL sub-array (the loop body above always doubles `step` right
+        # after processing a level, so at this point it holds "one past
+        # the last level actually processed" -- precisely the spacing of
+        # the positions nobody has touched yet). Recurse on that sub-array
+        # AS ITS OWN IMAGE via a numpy strided view (shares memory with
+        # `image`, so this stays fully in-place) -- unbounded, since the
+        # whole point is that this remainder is small enough to finish
+        # cheaply on its own.
+        sub = image[y0:y1:step, x0:x1:step]
+        sub_h, sub_w = sub.shape
+        if sub_h > 1 or sub_w > 1:
+            lift(sub, 0, 0, sub_w, sub_h, 1, filter_type)
 
 
 def _lift_horizontal(
@@ -302,6 +346,7 @@ def unlift(  # cm:d5e6f7 — unlift(): inverse wavelet transform (wavelet → sp
     y1: int,
     min_step: int,
     filter_type: Filter,
+    max_levels: int | None = None,
 ) -> None:
     """
     Inverse wavelet transform using the lifting scheme.
@@ -316,6 +361,12 @@ def unlift(  # cm:d5e6f7 — unlift(): inverse wavelet transform (wavelet → sp
         x1, y1: Bottom-right corner (exclusive).
         min_step: Minimum step size to process down to (usually 1).
         filter_type: Filter.LINEAR (5/3) or Filter.CUBIC (9/7).
+        max_levels: Must match whatever was passed to the matching `lift()`
+            call for a correct round trip. See `lift()`'s own docstring for
+            the full semantics. When set, the (unbounded) remainder
+            sub-array is un-lifted FIRST, in place via a numpy strided
+            view (inverse order: undo the last thing done first), before
+            the main region's own capped levels are un-lifted normally.
 
     Note:
         The operations are the exact inverse of lift():
@@ -323,13 +374,51 @@ def unlift(  # cm:d5e6f7 — unlift(): inverse wavelet transform (wavelet → sp
         - Horizontal undo-update, then undo-predict
         - Halve the step and repeat
     """
+    if max_levels is not None and max_levels < 1:
+        raise ValueError(f"max_levels must be >= 1 if set, got {max_levels}")
+
     sizex = x1 - x0
     sizey = y1 - y0
 
-    # Find the maximum step (coarsest level)
+    # Replicate lift()'s own step/level progression EXACTLY (not the
+    # `step*2<sizex` formula below, which finds a different quantity) to
+    # determine whether/where the forward pass was capped -- must match
+    # lift() precisely, since any divergence here breaks the round trip.
     step = min_step
-    while step * 2 < sizex or step * 2 < sizey:
+    levels_done = 0
+    capped = False
+    while step < sizex or step < sizey:
+        if max_levels is not None and levels_done >= max_levels:
+            capped = True
+            break
         step *= 2
+        levels_done += 1
+    # `step` here is identical in meaning to lift()'s own post-loop `step`:
+    # one past the last level actually processed (or, if not capped, one
+    # past the natural coarsest level) -- i.e. the remainder sub-array's
+    # own granularity if `capped`, and exactly double the real coarsest
+    # step level in either case.
+
+    if capped:
+        sub = image[y0:y1:step, x0:x1:step]
+        sub_h, sub_w = sub.shape
+        if sub_h > 1 or sub_w > 1:
+            unlift(sub, 0, 0, sub_w, sub_h, 1, filter_type)
+
+    if levels_done == 0:
+        # Nothing was ever processed in the main region (only reachable via
+        # the natural sizex<=min_step and sizey<=min_step case, since
+        # max_levels>=1 is enforced above) -- no coarse levels to unlift.
+        return
+
+    # The coarsest step ACTUALLY PROCESSED by the (possibly-capped) forward
+    # pass -- NOT necessarily the image's own geometrically natural
+    # coarsest step, which is why the original unconditional
+    # `while step*2<sizex or step*2<sizey: step*=2` search (correct only
+    # when max_levels is None) can't be reused as-is once capping is
+    # possible: `levels_done` doublings from `min_step` lands exactly on
+    # it in both the capped and uncapped cases.
+    step = min_step * (1 << (levels_done - 1))
 
     # Work from coarsest to finest
     while step >= min_step:

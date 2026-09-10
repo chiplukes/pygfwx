@@ -45,7 +45,7 @@ def minimal_gfwx_header() -> bytes:
         chroma_scale=1,
         block_size=4,
         filter=Filter.LINEAR,
-        quantization=0,
+        max_levels=0,
         encoder=Encoder.TURBO,
         intent=Intent.GENERIC,
         metadata_size=0,
