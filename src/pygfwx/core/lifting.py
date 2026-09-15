@@ -118,6 +118,7 @@ def lift(  # cm:a2b3c4 — lift(): forward wavelet transform (spatial → wavele
     step: int,
     filter_type: Filter,
     max_levels: int | None = None,
+    remainder_raw: bool = False,
 ) -> None:
     """
     Forward wavelet transform using the lifting scheme.
@@ -152,6 +153,27 @@ def lift(  # cm:a2b3c4 — lift(): forward wavelet transform (spatial → wavele
             buffer whole and recurse over independently at negligible
             cost. `unlift()`'s own `max_levels` must match whatever was
             used here for a correct round trip.
+        remainder_raw: False (default) — when capped, the remainder is
+            still recursed on UNBOUNDED as described above (this is what
+            the entropy-coding side's own `remainder_raw=False` mode
+            actually reads back: a fully-decomposed sub-array, just
+            entropy-coded with its own dedicated recursive call instead
+            of stored raw). True — genuinely STOP at `max_levels`: the
+            remaining LL sub-array is left completely undecomposed, real
+            CineForm-style (`write_lowpass_pixels`'s own precedent — see
+            this function's own `max_levels` docstring above). Only
+            meaningful when `max_levels` is set. **This is the flag that
+            actually removes the deep-recursion lookahead problem for
+            real-time hardware** — `max_levels` alone does not: a
+            real-time encoder cannot compute what this function's own
+            unbounded recursive `lift()` call below would, which is
+            exactly why `remainder_raw=False`'s own output cannot be
+            reproduced by streaming RTL (a real, disclosed finding from
+              gfwx-fpga's own `remainder_raw_pack` bring-up — its RTL
+            naturally produces the `remainder_raw=True` case, the
+            genuinely undecomposed leftover, not the recursed one).
+            `unlift()`'s own `remainder_raw` must match whatever was
+            used here for a correct round trip.
 
     Note:
         After transform, even indices contain approximation coefficients (L)
@@ -179,7 +201,7 @@ def lift(  # cm:a2b3c4 — lift(): forward wavelet transform (spatial → wavele
         step *= 2
         levels_done += 1
 
-    if max_levels is not None and levels_done >= max_levels:
+    if max_levels is not None and levels_done >= max_levels and not remainder_raw:
         # Capped: `step` here is exactly the granularity of the remaining
         # LL sub-array (the loop body above always doubles `step` right
         # after processing a level, so at this point it holds "one past
@@ -188,7 +210,8 @@ def lift(  # cm:a2b3c4 — lift(): forward wavelet transform (spatial → wavele
         # AS ITS OWN IMAGE via a numpy strided view (shares memory with
         # `image`, so this stays fully in-place) -- unbounded, since the
         # whole point is that this remainder is small enough to finish
-        # cheaply on its own.
+        # cheaply on its own. Skipped entirely when remainder_raw=True --
+        # see this function's own remainder_raw docstring above.
         sub = image[y0:y1:step, x0:x1:step]
         sub_h, sub_w = sub.shape
         if sub_h > 1 or sub_w > 1:
@@ -347,6 +370,7 @@ def unlift(  # cm:d5e6f7 — unlift(): inverse wavelet transform (wavelet → sp
     min_step: int,
     filter_type: Filter,
     max_levels: int | None = None,
+    remainder_raw: bool = False,
 ) -> None:
     """
     Inverse wavelet transform using the lifting scheme.
@@ -363,10 +387,17 @@ def unlift(  # cm:d5e6f7 — unlift(): inverse wavelet transform (wavelet → sp
         filter_type: Filter.LINEAR (5/3) or Filter.CUBIC (9/7).
         max_levels: Must match whatever was passed to the matching `lift()`
             call for a correct round trip. See `lift()`'s own docstring for
-            the full semantics. When set, the (unbounded) remainder
-            sub-array is un-lifted FIRST, in place via a numpy strided
-            view (inverse order: undo the last thing done first), before
-            the main region's own capped levels are un-lifted normally.
+            the full semantics. When set (and `remainder_raw=False`), the
+            (unbounded) remainder sub-array is un-lifted FIRST, in place
+            via a numpy strided view (inverse order: undo the last thing
+            done first), before the main region's own capped levels are
+            un-lifted normally.
+        remainder_raw: Must match whatever was passed to the matching
+            `lift()` call. False (default): the remainder was recursively
+            lifted, so it's un-lifted first as described above. True: the
+            remainder was left genuinely undecomposed by `lift()`, so
+            there's nothing to un-lift there at all -- the sub-array's own
+            values are already final, real spatial-domain content.
 
     Note:
         The operations are the exact inverse of lift():
@@ -399,7 +430,7 @@ def unlift(  # cm:d5e6f7 — unlift(): inverse wavelet transform (wavelet → sp
     # own granularity if `capped`, and exactly double the real coarsest
     # step level in either case.
 
-    if capped:
+    if capped and not remainder_raw:
         sub = image[y0:y1:step, x0:x1:step]
         sub_h, sub_w = sub.shape
         if sub_h > 1 or sub_w > 1:

@@ -189,10 +189,21 @@ def decode_image(  # cm:e3f4a5 — decode_image(): full decode pipeline (header�
                     0,
                     QUALITY_MAX * boost,
                     max_levels=max_levels,
+                    remainder_raw=header.remainder_raw,
                 )
 
             # Inverse wavelet transform
-            unlift(channel_data, 0, 0, sizex_down, sizey_down, 1, Filter(header.filter), max_levels=max_levels)
+            unlift(
+                channel_data,
+                0,
+                0,
+                sizex_down,
+                sizey_down,
+                1,
+                Filter(header.filter),
+                max_levels=max_levels,
+                remainder_raw=header.remainder_raw,
+            )
 
     # Apply inverse color transform (if present)
     if transform_program and transform_steps:
@@ -315,6 +326,38 @@ def _parse_transform_program(stream: BitReader, num_channels: int) -> tuple[list
     return program, steps, is_chroma
 
 
+def _decode_remainder_raw(data: bytes, pos: int, sub: np.ndarray) -> tuple[bool, int]:  # cm:c4d5e6 — raw remainder readback
+    """
+    Decode a capped-recursion remainder that was stored raw (see
+    `_encode_remainder_raw` in block_encoder.py) — the counterpart read.
+
+    No length prefix exists in the stream: `sub.shape` already tells us
+    exactly how many int16 values (and how much zero padding) to expect,
+    the same deterministic derivation the encoder used.
+
+    Args:
+        data: Raw compressed data.
+        pos: Byte offset where this remainder's raw payload starts.
+        sub: 2D view into the parent's own aux_data at the remainder's
+            sub-region (a numpy strided view) — written into directly,
+            matching `_decode_all_levels`'s own convention of building
+            the array up through views into the same physical buffer.
+
+    Returns:
+        (is_truncated, pos): whether there wasn't enough data, and the
+        byte offset immediately after the (possibly padded) payload.
+    """
+    sub_h, sub_w = sub.shape
+    payload_len = sub_h * sub_w * 2
+    padded_len = (payload_len + 3) & ~3
+    end = pos + payload_len
+    if end > len(data):
+        return True, min(pos + padded_len, len(data))
+    values = np.frombuffer(data[pos:end], dtype="<i2").reshape(sub_h, sub_w)
+    sub[:, :] = values
+    return False, pos + padded_len
+
+
 def _decode_all_levels(
     aux_data: np.ndarray,
     data: bytes,
@@ -432,23 +475,27 @@ def _decode_all_levels(
             sub = aux_data[c, 0:sizey:remainder_step, 0:sizex:remainder_step]
             sub_h, sub_w = sub.shape
             if sub_h > 1 or sub_w > 1:
-                sub_truncated, pos = _decode_all_levels(
-                    aux_data=sub[np.newaxis, :, :],
-                    data=data,
-                    stream_offset=pos,
-                    header=header,
-                    sizex_down=sub_w,
-                    sizey_down=sub_h,
-                    downsampling=0,
-                    is_chroma=[is_chroma[c]],
-                    chroma_quality=chroma_quality,
-                    is_bayer=False,
-                    sizex=sub_w,
-                    sizey=sub_h,
-                    max_levels=None,
-                    total_channels=1,
-                )
-                is_truncated = is_truncated or sub_truncated
+                if header.remainder_raw:
+                    sub_truncated, pos = _decode_remainder_raw(data, pos, sub)
+                    is_truncated = is_truncated or sub_truncated
+                else:
+                    sub_truncated, pos = _decode_all_levels(
+                        aux_data=sub[np.newaxis, :, :],
+                        data=data,
+                        stream_offset=pos,
+                        header=header,
+                        sizex_down=sub_w,
+                        sizey_down=sub_h,
+                        downsampling=0,
+                        is_chroma=[is_chroma[c]],
+                        chroma_quality=chroma_quality,
+                        is_bayer=False,
+                        sizex=sub_w,
+                        sizey=sub_h,
+                        max_levels=None,
+                        total_channels=1,
+                    )
+                    is_truncated = is_truncated or sub_truncated
 
     # Decode each resolution level. The true DC belongs to whatever
     # recursion actually bottoms out -- when capped, that's the

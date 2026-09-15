@@ -62,6 +62,7 @@ def encode(  # cm:d4e5f6 — High-level encode() → bytes
     metadata: bytes = b"",
     color_transform: str | None = None,
     max_levels: int | None = None,
+    remainder_raw: bool = False,
 ) -> bytes:
     """
     Encode an image to GFWX format.
@@ -98,6 +99,15 @@ def encode(  # cm:d4e5f6 — High-level encode() → bytes
             notes/gfwx_capped_recursion_explainer.md for the rationale
             and real measured cost. Recorded in the header automatically;
             `decode()` needs no corresponding argument.
+        remainder_raw: False (default) — the capped remainder is
+            recursively transformed and entropy-coded (pygfwx's own
+            existing behavior). True — store the remainder as literal,
+            uncompressed int16 values instead (no transform, no entropy
+            coding) — the simpler "CineForm-style" alternative
+            gfwx-fpga's own notes/gfwx_capped_recursion_explainer.md
+            documents. Only meaningful when `max_levels` is set.
+            Recorded in the header automatically; `decode()` needs no
+            corresponding argument.
 
     Returns:
         Compressed GFWX data as bytes.
@@ -121,6 +131,7 @@ def encode(  # cm:d4e5f6 — High-level encode() → bytes
         metadata=metadata,
         color_transform=color_transform,
         max_levels=max_levels,
+        remainder_raw=remainder_raw,
     )
     return result.data
 

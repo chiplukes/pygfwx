@@ -32,6 +32,7 @@ def quantize(  # cm:b6c7d8 — quantize(): forward scalar quantization of wavele
     min_q: int,
     max_q: int,
     max_levels: int | None = None,
+    remainder_raw: bool = False,
 ) -> None:
     """
     Apply forward quantization to wavelet coefficients (encoding).
@@ -52,11 +53,18 @@ def quantize(  # cm:b6c7d8 — quantize(): forward scalar quantization of wavele
         max_q: Maximum quality * boost (usually 1024 * 8 = 8192).
         max_levels: Must match whatever was passed to the matching `lift()`
             call (see that function's own docstring for the full
-            semantics). When set, quantizes normally through `max_levels`
-            levels, then recurses `quantize()` on the remaining LL
-            sub-array (unbounded, fresh `quality` progression from the
-            same base `quality`) as its own self-contained image, via a
-            numpy strided view.
+            semantics). When set (and `remainder_raw=False`), quantizes
+            normally through `max_levels` levels, then recurses
+            `quantize()` on the remaining LL sub-array (unbounded, fresh
+            `quality` progression from the same base `quality`) as its
+            own self-contained image, via a numpy strided view.
+        remainder_raw: Must match whatever was passed to the matching
+            `lift()` call. False (default): the remainder is recursively
+            quantized as described above. True: the remainder was left
+            undecomposed by `lift()`, so it's left unquantized here too —
+            genuinely lossless regardless of `quality`, matching real
+            streaming hardware (`h3_cascade_chain`'s own child feed has
+            no quantization stage at all).
 
     Note:
         For lossless encoding (quality=1024), no actual quantization occurs
@@ -95,7 +103,7 @@ def quantize(  # cm:b6c7d8 — quantize(): forward scalar quantization of wavele
         quality = min(max_q, quality * 2)  # [MAGIC] Approximates JPEG 2000 baseline
         levels_done += 1
 
-    if max_levels is not None and levels_done >= max_levels:
+    if max_levels is not None and levels_done >= max_levels and not remainder_raw:
         sub = image[y0:y1:skip, x0:x1:skip]
         sub_h, sub_w = sub.shape
         if sub_h > 1 or sub_w > 1:
@@ -113,6 +121,7 @@ def dequantize(  # cm:e9f0a1 — dequantize(): inverse quantization with midpoin
     min_q: int,
     max_q: int,
     max_levels: int | None = None,
+    remainder_raw: bool = False,
 ) -> None:
     """
     Apply inverse quantization to wavelet coefficients (decoding).
@@ -138,6 +147,10 @@ def dequantize(  # cm:e9f0a1 — dequantize(): inverse quantization with midpoin
             never depends on another's dequantized value) — the remainder
             sub-array is recursed into after the main capped levels,
             purely for structural consistency with `quantize()`.
+        remainder_raw: Must match whatever was passed to the matching
+            `quantize()` call. False (default): the remainder is
+            recursively dequantized as described above. True: the
+            remainder was never quantized, so it's left untouched here.
 
     Note:
         For lossless decoding (quality >= 1024), no dequantization occurs
@@ -180,7 +193,7 @@ def dequantize(  # cm:e9f0a1 — dequantize(): inverse quantization with midpoin
         quality = min(max_q, quality * 2)  # [MAGIC] Approximates JPEG 2000 baseline
         levels_done += 1
 
-    if max_levels is not None and levels_done >= max_levels:
+    if max_levels is not None and levels_done >= max_levels and not remainder_raw:
         sub = image[y0:y1:skip, x0:x1:skip]
         sub_h, sub_w = sub.shape
         if sub_h > 1 or sub_w > 1:

@@ -64,6 +64,7 @@ def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validat
     metadata: bytes = b"",
     color_transform: str | None = None,
     max_levels: int | None = None,
+    remainder_raw: bool = False,
 ) -> EncodeResult:
     """
     Encode an image to GFWX format.
@@ -96,6 +97,14 @@ def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validat
             NOTE: not yet verified in combination with Bayer mode or
             `downsampling=` in `decode()` — flagged as a known gap, not
             silently assumed to work.
+        remainder_raw: False (default) — the capped remainder is
+            recursively transformed and entropy-coded (pygfwx's own
+            existing behavior). True — store the remainder as literal,
+            uncompressed int16 values instead (no transform, no entropy
+            coding); see `header.py`'s own `GFWXHeader.remainder_raw`
+            docstring. Only meaningful when `max_levels` is set.
+            Recorded in the header; `decode()` needs no corresponding
+            argument.
 
     Returns:
         EncodeResult containing compressed data and header.
@@ -124,6 +133,7 @@ def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validat
         intent=intent,
         chroma_scale=chroma_scale,
         max_levels=max_levels,
+        remainder_raw=remainder_raw,
     )
 
     # Convert to internal format (int32 for wavelet processing)
@@ -138,7 +148,7 @@ def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validat
 
     # Apply forward wavelet transform to each channel
     for c in range(total_channels):
-        lift(aux_data[c], 0, 0, width, height, 1, Filter(header.filter), max_levels=max_levels)
+        lift(aux_data[c], 0, 0, width, height, 1, Filter(header.filter), max_levels=max_levels, remainder_raw=remainder_raw)
 
     # Apply quantization (for lossy compression)
     if quality < QUALITY_MAX:
@@ -147,7 +157,9 @@ def encode_image(  # cm:e1f2a3 — encode_image(): full encode pipeline (validat
 
         for c in range(total_channels):
             channel_quality = chroma_quality if is_chroma[c] else quality
-            quantize(aux_data[c], 0, 0, width, height, 1, channel_quality, 0, max_q, max_levels=max_levels)
+            quantize(
+                aux_data[c], 0, 0, width, height, 1, channel_quality, 0, max_q, max_levels=max_levels, remainder_raw=remainder_raw
+            )
 
     # Encode all blocks
     encoded_data = _encode_all_levels(
@@ -283,6 +295,52 @@ def _auto_detect_intent(channels: int) -> Intent:
         return Intent.GENERIC
 
 
+def _encode_remainder_raw(sub: np.ndarray) -> bytes:  # cm:f1a2b3 — raw (uncompressed) remainder storage
+    """
+    Encode a capped-recursion remainder as literal, uncompressed int16
+    values instead of recursively transforming/entropy-coding it — the
+    simpler "CineForm-style" alternative documented in gfwx-fpga's own
+    notes/gfwx_capped_recursion_explainer.md (used there as the
+    pessimistic cost baseline; pygfwx's own default behavior does
+    better, see `_encode_all_levels`).
+
+    No length prefix is written: the decoder already knows `sub_h`/
+    `sub_w` deterministically from the same header fields the encoder
+    used (`remainder_step` is a pure function of `sizex`/`sizey`/
+    `max_levels`), so it can compute the exact same byte count itself —
+    consistent with this format's existing "no separate length field,
+    both sides derive it identically" convention (see
+    `_encode_all_levels`'s own docstring on remainder-section framing).
+
+    Args:
+        sub: 2D coefficient array (the remainder sub-image for one
+            channel), row-major, any numpy integer dtype.
+
+    Returns:
+        Little-endian int16 values in row-major order, padded with zero
+        bytes to a 4-byte boundary (matching every other section's own
+        padding convention).
+
+    Raises:
+        ValueError: If any value doesn't fit in a signed 16-bit int —
+            fail loudly rather than silently truncate real coefficient
+            data.
+    """
+    lo, hi = int(sub.min()), int(sub.max())
+    if lo < -32768 or hi > 32767:
+        raise ValueError(
+            f"remainder_raw storage requires all remainder values to fit in int16 "
+            f"(range -32768..32767); got a value range of {lo}..{hi}"
+        )
+    # `sub` is a strided view (remainder_step spacing) -- force row-major
+    # (C) order explicitly so byte layout doesn't silently follow
+    # whatever memory layout the view happens to have.
+    raw_bytes = bytearray(sub.astype("<i2", order="C").tobytes(order="C"))
+    while len(raw_bytes) % 4 != 0:
+        raw_bytes.append(0)
+    return bytes(raw_bytes)
+
+
 def _encode_all_levels(  # cm:b4c5d6 — _encode_all_levels(): resolution-level loop (coarse→fine block encoding)
     aux_data: np.ndarray,
     header: GFWXHeader,
@@ -388,16 +446,19 @@ def _encode_all_levels(  # cm:b4c5d6 — _encode_all_levels(): resolution-level 
             sub = aux_data[c, 0:sizey:remainder_step, 0:sizex:remainder_step]
             sub_h, sub_w = sub.shape
             if sub_h > 1 or sub_w > 1:
-                remainder_bytes = _encode_all_levels(
-                    sub[np.newaxis, :, :],
-                    header,
-                    is_chroma=[is_chroma[c]],
-                    sizex=sub_w,
-                    sizey=sub_h,
-                    max_levels=None,
-                    total_channels=1,
-                )
-                output.extend(remainder_bytes)
+                if header.remainder_raw:
+                    output.extend(_encode_remainder_raw(sub))
+                else:
+                    remainder_bytes = _encode_all_levels(
+                        sub[np.newaxis, :, :],
+                        header,
+                        is_chroma=[is_chroma[c]],
+                        sizex=sub_w,
+                        sizey=sub_h,
+                        max_levels=None,
+                        total_channels=1,
+                    )
+                    output.extend(remainder_bytes)
 
     # Encode each resolution level, starting at the coarsest step actually
     # processed (see derivation above) rather than whatever `step`

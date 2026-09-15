@@ -74,18 +74,32 @@ class GFWXHeader:  # cm:b1c2d3 — GFWXHeader dataclass: all file-format fields 
     # Repurposes what was a write-only, always-zero reserved byte
     # ("quantization" — written but never read anywhere in this codebase,
     # and confirmed always 0 in real SDK-produced files too, per
-    # test_header.py's own cross-compatibility check). 0 = standard,
+    # test_header.py's own cross-compatibility check). Stored as bits
+    # [6:0] of that byte (bit 7 is `remainder_raw`, below) — 0 = standard,
     # unbounded GFWX recursion (bit-for-bit backward compatible with
     # every file written before this field existed). N>=1 = the
     # deliberate capped-recursion divergence documented in gfwx-fpga's
     # own notes/gfwx_capped_recursion_explainer.md — decompose normally
     # through level N, then recurse on the remaining LL sub-array as its
     # own self-contained image. See `lift()`'s own docstring for the
-    # full semantics this implements.
+    # full semantics this implements. Representable range is 1-127, not
+    # 1-255 (bit 7 of the byte this shares is `remainder_raw`).
     max_levels: int
     encoder: Encoder
     intent: Intent
     metadata_size: int  # Size in 32-bit words
+    # Bit 7 of the same repurposed byte as `max_levels` (bits [6:0]).
+    # Only meaningful when `max_levels > 0`. False (default, matches
+    # every file written before this field existed): the remainder is
+    # recursively wavelet-transformed and entropy-coded the same way as
+    # any other region (pygfwx's own real, already-shipped behavior).
+    # True: the remainder is stored as literal, uncompressed int16
+    # values (no further transform, no entropy coding) — the simpler
+    # "CineForm-style" alternative gfwx-fpga's own
+    # notes/gfwx_capped_recursion_explainer.md measures as the
+    # pessimistic baseline; see `_encode_all_levels`/`_decode_all_levels`
+    # for the actual raw framing.
+    remainder_raw: bool = False
 
     @property
     def is_lossless(self) -> bool:
@@ -162,9 +176,12 @@ def parse_header(
     block_size = reader.get_bits(5) + 2
     filter_val = reader.get_bits(8)
 
-    # max_levels (repurposed reserved byte — see GFWXHeader's own field
-    # comment), encoder, intent
-    max_levels = reader.get_bits(8)
+    # max_levels/remainder_raw (repurposed reserved byte — see
+    # GFWXHeader's own field comments): bits [6:0] = max_levels (0-127),
+    # bit 7 = remainder_raw.
+    max_levels_byte = reader.get_bits(8)
+    max_levels = max_levels_byte & 0x7F
+    remainder_raw = bool(max_levels_byte & 0x80)
     encoder_val = reader.get_bits(8)
     intent_val = reader.get_bits(8)
 
@@ -203,6 +220,7 @@ def parse_header(
         encoder=encoder_type,
         intent=intent_type,
         metadata_size=metadata_size,
+        remainder_raw=remainder_raw,
     )
 
     # Calculate header size: fixed header + metadata
@@ -258,7 +276,8 @@ def write_header(
     - chroma_scale - 1 (8 bits)
     - block_size - 2 (5 bits)
     - filter (8 bits)
-    - max_levels (8 bits) — repurposed reserved byte, 0 = unbounded
+    - max_levels (8 bits) — repurposed reserved byte: bits [6:0] =
+      max_levels (0 = unbounded), bit 7 = remainder_raw
     - encoder (8 bits)
     - intent (8 bits)
     - metadata_size in words (32 bits)
@@ -314,9 +333,10 @@ def write_header(
     # Block size (stored as value - 2, 5 bits)
     writer.put_bits(header.block_size - 2, 5)
 
-    # Filter, max_levels, encoder, intent (8 bits each)
+    # Filter, max_levels/remainder_raw, encoder, intent (8 bits each)
     writer.put_bits(int(header.filter), 8)
-    writer.put_bits(header.max_levels, 8)
+    max_levels_byte = (header.max_levels & 0x7F) | (0x80 if header.remainder_raw else 0)
+    writer.put_bits(max_levels_byte, 8)
     writer.put_bits(int(header.encoder), 8)
     writer.put_bits(int(header.intent), 8)
 
@@ -347,6 +367,7 @@ def create_default_header(  # cm:e0f1a2 — create_default_header(): convenience
     chroma_scale: int = 1,
     block_size: int = 7,
     max_levels: int | None = None,
+    remainder_raw: bool = False,
 ) -> GFWXHeader:
     """
     Create a GFWXHeader with default values.
@@ -370,16 +391,26 @@ def create_default_header(  # cm:e0f1a2 — create_default_header(): convenience
             A positive integer for the capped-recursion divergence (see
             `lift()`'s own docstring and
             gfwx-fpga's notes/gfwx_capped_recursion_explainer.md) — must
-            fit in 8 bits (1-255).
+            fit in 7 bits (1-127; bit 7 of the same byte is
+            `remainder_raw`, below).
+        remainder_raw: False (default) — the capped remainder is
+            recursively transformed and entropy-coded like any other
+            region (pygfwx's own existing behavior). True — the
+            remainder is stored as literal, uncompressed int16 values
+            instead (no transform, no entropy coding). Only meaningful
+            when `max_levels` is set.
 
     Returns:
         A configured GFWXHeader.
 
     Raises:
-        ValueError: If max_levels is out of the representable range.
+        ValueError: If max_levels is out of the representable range, or
+            remainder_raw=True is passed without max_levels set.
     """
-    if max_levels is not None and not (1 <= max_levels <= 255):
-        raise ValueError(f"max_levels must be 1-255 if set, got {max_levels}")
+    if max_levels is not None and not (1 <= max_levels <= 127):
+        raise ValueError(f"max_levels must be 1-127 if set, got {max_levels}")
+    if remainder_raw and max_levels is None:
+        raise ValueError("remainder_raw=True requires max_levels to be set")
 
     return GFWXHeader(
         version=1,
@@ -394,6 +425,7 @@ def create_default_header(  # cm:e0f1a2 — create_default_header(): convenience
         block_size=block_size,
         filter=filter_type,
         max_levels=max_levels if max_levels is not None else 0,
+        remainder_raw=remainder_raw,
         encoder=encoder,
         intent=intent,
         metadata_size=0,

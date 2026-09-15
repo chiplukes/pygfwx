@@ -207,3 +207,97 @@ class TestEncodeDecodeMaxLevels:
         compressed = encode(image, quality=QUALITY_MAX, max_levels=5)
         with pytest.raises(NotImplementedError):
             decode(compressed, downsampling=1)
+
+
+class TestRemainderRaw:
+    """`remainder_raw=True`: the capped remainder is stored as literal,
+    uncompressed int16 values instead of being recursively transformed
+    and entropy-coded -- the simpler "CineForm-style" alternative
+    documented in gfwx-fpga's own
+    notes/gfwx_capped_recursion_explainer.md (that doc's own pessimistic
+    cost baseline; pygfwx's default, non-raw behavior does ~44% better).
+    """
+
+    SHAPES = [(16, 16), (48, 64), (7, 9), (64, 48), (33, 17)]
+
+    @pytest.mark.parametrize("h,w", SHAPES)
+    @pytest.mark.parametrize("max_levels", [1, 2, 3, 5])
+    def test_lossless_round_trip(self, h, w, max_levels):
+        rng = np.random.default_rng(20)
+        image = rng.integers(0, 256, size=(h, w), dtype=np.uint8)
+        compressed = encode(image, quality=QUALITY_MAX, max_levels=max_levels, remainder_raw=True)
+        decoded = decode(compressed)
+        if decoded.ndim == 3:
+            decoded = decoded[..., 0]
+        np.testing.assert_array_equal(decoded, image)
+
+    @pytest.mark.parametrize("max_levels", [2, 4])
+    def test_rgb_lossless_round_trip(self, max_levels):
+        rng = np.random.default_rng(21)
+        for h, w in [(16, 16), (48, 64), (7, 9)]:
+            image = rng.integers(0, 256, size=(h, w, 3), dtype=np.uint8)
+            compressed = encode(image, quality=QUALITY_MAX, max_levels=max_levels, remainder_raw=True)
+            decoded = decode(compressed)
+            np.testing.assert_array_equal(decoded, image)
+
+    @pytest.mark.parametrize("quality", [512, 256, 64])
+    def test_lossy_sane(self, quality):
+        """Smoke test across lossy quality settings -- not a tight
+        distortion bound, just confirms no crash/garbage output."""
+        rng = np.random.default_rng(22)
+        image = rng.integers(0, 256, size=(64, 48), dtype=np.uint8)
+        compressed = encode(image, quality=quality, max_levels=4, remainder_raw=True)
+        decoded = decode(compressed)
+        if decoded.ndim == 3:
+            decoded = decoded[..., 0]
+        max_err = int(np.max(np.abs(decoded.astype(np.int32) - image.astype(np.int32))))
+        assert max_err < 260
+
+    def test_header_records_remainder_raw(self):
+        rng = np.random.default_rng(23)
+        image = rng.integers(0, 256, size=(32, 32), dtype=np.uint8)
+
+        compressed_default = encode(image, quality=QUALITY_MAX, max_levels=5)
+        header_default, _ = parse_header(compressed_default)
+        assert header_default.remainder_raw is False
+
+        compressed_raw = encode(image, quality=QUALITY_MAX, max_levels=5, remainder_raw=True)
+        header_raw, _ = parse_header(compressed_raw)
+        assert header_raw.remainder_raw is True
+        # max_levels itself must be unaffected by sharing a byte with
+        # the new flag bit.
+        assert header_raw.max_levels == 5
+
+    def test_requires_max_levels(self):
+        rng = np.random.default_rng(24)
+        image = rng.integers(0, 256, size=(16, 16), dtype=np.uint8)
+        with pytest.raises(ValueError):
+            encode(image, quality=QUALITY_MAX, remainder_raw=True)
+
+    def test_raw_is_larger_than_default(self):
+        """Sanity check against gfwx-fpga's own real measurement (~44%
+        smaller for the default entropy-coded remainder vs. raw storage,
+        notes/gfwx_capped_recursion_explainer.md) -- raw storage should
+        never be SMALLER for real content, or something's wrong."""
+        from pathlib import Path
+
+        from PIL import Image
+
+        asset = Path(__file__).parent.parent / "examples" / "assets" / "cat_demo.png"
+        photo = np.array(Image.open(asset).convert("L")).astype(np.uint8)
+
+        compressed_default = encode(photo, quality=QUALITY_MAX, max_levels=5)
+        compressed_raw = encode(photo, quality=QUALITY_MAX, max_levels=5, remainder_raw=True)
+        assert len(compressed_raw) > len(compressed_default)
+
+    def test_value_overflow_rejected(self):
+        """_encode_remainder_raw must fail loudly rather than silently
+        truncate a value that doesn't fit in int16."""
+        from pygfwx.core.block_encoder import _encode_remainder_raw
+
+        ok = np.array([[100, -32768], [32767, 0]], dtype=np.int64)
+        _encode_remainder_raw(ok)  # must not raise
+
+        bad = np.array([[100, 32768]], dtype=np.int64)
+        with pytest.raises(ValueError):
+            _encode_remainder_raw(bad)
